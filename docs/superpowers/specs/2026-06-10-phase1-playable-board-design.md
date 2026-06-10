@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-10
 **Owner:** Rasmus (rlunde)
-**Status:** Approved design, ready for implementation plan
+**Status:** Approved design, revised after multi-lens spec review, ready for implementation plan
 **Source spec:** `docs/backgammon-app-spec.md` (§9 UI/UX, §12 Phase 1, §13 layout)
 **Builds on:** Phase 0 core engine (`:core`), merged to `main`.
 
@@ -16,161 +16,219 @@ the Phase 0 rules engine against a real UI. The app launches **straight into a f
 **In scope:** the `:app` Android module; a Compose `Canvas` board (fixed White's-perspective
 orientation); tap-to-roll, tap-to-move with legal-destination highlighting, free undo, and
 commit; auto-pass when there are no legal moves; a game-over banner with the win value; a
-"New game" action; an always-on pip-count readout. A small **pure turn-planner** added to
-`:core` powers the incremental move building.
+"New game" action; an always-on pip-count readout. A small **pure `TurnPlanner`** added to
+`:core` powers incremental move building; a pure **`GameController`** in `:app` owns the turn
+state machine (so the logic is JVM-tested without Android).
 
 **Out of scope (deferred):** AI / difficulty (Phase 2); persistence / resume (Phase 4);
 animations, theme switching, settings, hint, coach markers, sound/haptics (Phase 4+);
 drag-to-move, board-flip, landscape. No Home/menu screen yet.
 
+**Accepted Phase-1 limitations (explicit, not gaps):**
+- **Black plays "inverted"** — the board is fixed to White's perspective, so Black's home is the
+  top-right and Black moves upward. This is a common convention for digital hot-seat; mitigated
+  by a prominent active-player cue (§4.3). A board-flip option is a later phase.
+- **No opening roll-off** — the game starts with **White to move** and a normal two-die roll
+  (real backgammon's single-die roll-off is deferred; revisit with match play).
+- **Process death loses the in-progress game** (no persistence this phase). Configuration
+  changes (rotation is portrait-locked, but dark-mode / font-scale / multi-window still occur)
+  must **not** lose state — see §5.
+
 ## 2. Architecture
 
 ```
-:app  (Android: Compose UI + GameViewModel)   ← new this phase, depends on :core
+:app  (Android: Compose UI + GameController + GameViewModel)   ← new this phase, depends on :core
   ↓
-:core (pure-Kotlin engine + turn planner)      ← Phase 0, plus small additions this phase
+:core (pure-Kotlin engine + TurnPlanner)                       ← Phase 0, plus a TurnPlanner this phase
 ```
 
-`:core` stays pure Kotlin with **zero Android dependencies**. All rules and turn logic live
-there (unit-testable on the JVM). `:app` holds only rendering, input, and UI/turn *state* —
-no rules logic.
+`:core` stays pure Kotlin with **zero Android dependencies**. All *rules* live there. The *turn
+state machine* lives in `:app` as a pure `GameController` (also Android-free in its logic), with
+`GameViewModel` a thin lifecycle adapter. The Compose layer only renders state and forwards taps.
 
-**`settings.gradle.kts`** adds `include(":app")`. A `local.properties` (git-ignored) with
-`sdk.dir` points the Android build at the installed SDK
-(`C:\Users\RasmusLundgaardHanse\AppData\Local\Android\Sdk`).
+**`settings.gradle.kts`** adds `include(":app")` **and adds `google()`** to
+`dependencyResolutionManagement.repositories` (AGP and Compose artifacts are not on Maven
+Central). A git-ignored `local.properties` with `sdk.dir` points the build at the installed SDK
+(`C:\Users\RasmusLundgaardHanse\AppData\Local\Android\Sdk`). The Android **`applicationId` is
+`dk.rlunde.backgammon`** (matching `:core`'s package root; supersedes the product spec §13/§14.8
+`com.lunde.backgammon` placeholder).
 
-### 2.1 Build toolchain (flagged risk — resolve as the first plan task)
+### 2.1 Build toolchain — resolve empirically as the FIRST plan task (gated)
 
-Phase 1 introduces the Android Gradle Plugin (AGP). Only platforms **android-36 / android-36.1**
-are installed locally, and `compileSdk 36` requires a recent AGP that needs a Gradle newer than
-the currently pinned **8.10**. Resolution (decide + verify in plan Task 0):
+Phase 1 introduces the Android Gradle Plugin (AGP) + Jetpack Compose. Only platforms
+**android-36 / android-36.1** are installed locally, and `compileSdk 36` requires a recent AGP
+that in turn needs a Gradle newer than the currently pinned **8.10**. The exact compatible
+versions cannot be settled from memory and **must be pinned by a short spike**, not guessed in
+prose. Plan **Task 0** does this and is gated:
 
-- **Preferred:** bump the Gradle wrapper to **8.11.x** (compatible with Kotlin 2.0.21) and use an
-  AGP that supports `compileSdk 36` (e.g. AGP 8.7.x+), plus the Kotlin Compose compiler Gradle
-  plugin (`org.jetbrains.kotlin.plugin.compose`, Kotlin 2.0+).
-- **Fallback:** install an `android-35` platform via `sdkmanager` and use AGP 8.6 on Gradle 8.10.
+1. Choose a coherent set and pin it in `gradle/libs.versions.toml`: **Gradle wrapper**, **AGP**,
+   **Compose BOM**, and the **Compose Compiler Gradle plugin** `org.jetbrains.kotlin.plugin.compose`
+   whose version **must equal the Kotlin version (2.0.21)**. Preferred direction: bump the wrapper
+   the minimum needed for an AGP that supports `compileSdk 36`. Fallback: install an `android-35`
+   platform — `sdkmanager --sdk_root="C:\Users\RasmusLundgaardHanse\AppData\Local\Android\Sdk" "platforms;android-35"`
+   (ANDROID_HOME is unset; pass `--sdk_root`) — and use an AGP that runs on Gradle 8.10 with
+   `compileSdk 35`.
+2. Add `google()` to settings repositories.
+3. **Gate A:** a blank `:app` (single `MainActivity` rendering `setContent { Text("ok") }`)
+   **builds, installs, and launches on the Pixel 9 Pro emulator**.
+4. **Gate B:** after any wrapper bump, **all 55 `:core` tests stay green** (`./gradlew :core:test`).
 
-`minSdk = 26`, `targetSdk = compileSdk` (per product spec §2). `:core` continues to compile to
-JVM-17 bytecode. Exact versions (AGP, Gradle, Compose BOM) are pinned in plan Task 0 and verified
-by a build + launch on the **Pixel 9 Pro** emulator.
+`minSdk = 26`; `targetSdk = compileSdk`. `:core` continues to compile to JVM-17 bytecode. Only
+after Gates A+B pass does app implementation begin.
 
-## 3. The turn planner (pure, added to `:core`)
+## 3. The turn planner (`TurnPlanner`, pure, added to `:core`)
 
-The engine produces *complete* legal turns (`legalMoves`), but the UI builds a turn one
-sub-move at a time and must never strand the player into an illegal/incomplete turn. Two new
-pure functions on `MoveGenerator` solve this by keeping every staged sub-move on a
-**maximum-pips path**:
+The engine produces *complete* legal turns (`legalMoves`), but the UI builds a turn one sub-move
+at a time and must never strand the player into an illegal/incomplete turn. A new **`TurnPlanner`**
+object — co-located in `MoveGenerator.kt` so it can call the existing **`private`**
+`enumerateSequences`/`applySubMove` **without changing their visibility** (no new board-mutation
+surface leaks to `:app`) — exposes exactly two public functions:
 
 ```kotlin
-/** Most pips playable from [state] using the dice still in hand. 0 = turn is complete. */
-fun maxUsablePips(state: BoardState, remainingDice: List<Int>): Int
+object TurnPlanner {
+    /** Most pips playable from [state] using the dice still in hand. 0 ⇒ the turn is complete. */
+    fun maxUsablePips(state: BoardState, remainingDice: List<Int>): Int
 
-/**
- * The single-die sub-moves legal from [state] that PRESERVE the maximum-pips total — i.e. each
- * returned sm satisfies: sm.die + maxUsablePips(applySubMove(state, sm), remainingDice − sm.die)
- *   == maxUsablePips(state, remainingDice).
- * This makes the "use the maximum number of dice / play the larger" rule hold incrementally:
- * the player can only ever build a complete legal turn, and can never strand a die.
- */
-fun legalNextSubMoves(state: BoardState, remainingDice: List<Int>): List<SubMove>
+    /**
+     * Legal next single-die sub-moves that PRESERVE the maximum-pips total, grouped by origin
+     * point (the bar uses the bar `from`-sentinel as its key). Each returned sm satisfies:
+     *   sm.die + maxUsablePips(applySubMove(state, sm), remainingDice with ONE sm.die removed)
+     *     == maxUsablePips(state, remainingDice)
+     */
+    fun legalNextSubMoves(state: BoardState, remainingDice: List<Int>): Map<Int, List<SubMove>>
+}
 ```
 
-Both reuse Phase 0's `enumerateSequences`. `maxUsablePips` = the max pip-sum over enumerated
-sequences from `state` with `remainingDice`. These run on partial mid-turn states whose `toMove`
-is still the mover (sub-moves are applied without flipping until commit). To support this, the
-internal `applySubMove` and `enumerateSequences` get minimal `internal`/exposed access as needed
-(or thin public wrappers), staying within `:core`.
-
-- **Selectable origins / destinations:** for a tapped point `p`, the highlighted destinations are
-  `{ sm.to : sm ∈ legalNextSubMoves(partial, remaining), sm.from == p }`.
+- **`remainingDice` is a multiset (`List<Int>`)**, and "remove `sm.die`" removes **exactly one
+  occurrence** (mirroring Phase 0's `remainingDice.toMutableList().apply { remove(die) }`). This
+  is essential for **doubles**: with `[4,4,4,4]`, set-style subtraction would drop all 4s and
+  strand the player. (Test: `legalNextSubMoves` stays non-empty across all four staged 4s.)
+- **Invariant relied upon:** for the two rolled dice, max *pip-sum* ⇒ max *dice count* (since
+  `a+b > max(a,b)`, and doubles are uniform), so the commit gate below never under-uses dice.
+  Pinned by a `:core` test.
+- **Mid-turn states keep `toMove` = the mover** (sub-moves are applied without flipping until
+  commit), so `enumerateSequences` operates correctly on them.
+- **Destinations for a tapped point `p`** = `legalNextSubMoves(partial, remaining)[p]?.map { it.to }`.
 - **Commit available** exactly when `maxUsablePips(partial, remaining) == 0`.
+- **Must be recomputed against the post-staging `partial`/`remaining` after every append and every
+  undo — never cached across a staging change** (a cached set can strand the player).
 
-This planner is unit-tested on the JVM with no Android dependency.
+`TurnPlanner` is unit-tested on the JVM with no Android dependency. (Rationale for a `:core`
+planner over filtering `legalMoves` in `:app`: incremental, order-independent, never strands,
+keeps all rules logic in tested `:core`.)
 
 ## 4. Board rendering (`:app`, Compose `Canvas`)
 
 Portrait, board fills the width, **fixed White's-perspective** orientation, sized relative to
 canvas dimensions (resolution-independent).
 
-### 4.1 Geometry — single source of truth
+### 4.1 Geometry — single source of truth (pure, no Compose types)
 `BoardGeometry(widthPx, heightPx)` computes the screen rectangle/anchor for every element: the 24
-point-triangles, the central **bar**, the two **bear-off trays**, and the **dice** area. Both
-the draw code and tap hit-testing use it. To stay JVM-unit-testable, `BoardGeometry` depends on
-**no Compose types** — it takes plain `Float`s and returns a plain `Rect` data class (`l,t,r,b`).
-The inverse:
+point-triangles, the central **bar**, **two bear-off trays**, and the **dice** area. It depends on
+**no Compose/Android types** — plain `Float`s in, a plain `BoardRect(l,t,r,b)` data class out (named
+`BoardRect` to avoid colliding with `android.graphics.Rect` / Compose `Rect`). The inverse:
 
 ```kotlin
 sealed interface BoardTarget {
-    data class Point(val index: Int) : BoardTarget   // 1..24
+    data class Point(val index: Int) : BoardTarget { init { require(index in 1..24) } } // 1..24
     data object Bar : BoardTarget
-    data object BearOff : BoardTarget
+    data class BearOff(val player: Player) : BoardTarget   // White & Black trays are distinct
     data object Dice : BoardTarget
-    data object None : BoardTarget
 }
-fun BoardGeometry.hitTest(x: Float, y: Float): BoardTarget
+fun BoardGeometry.hitTest(x: Float, y: Float): BoardTarget?   // null = no interactive region
 ```
 
-`BoardCanvas` adapts Compose's `Size`→(`widthPx,heightPx`) when building the geometry and a tap
-`Offset`→(`x,y`) when calling `hitTest`. Because `BoardGeometry`/`hitTest` are pure arithmetic over
-floats, they are JVM-unit-testable with no Android/Compose dependency.
+`BoardCanvas` adapts Compose's `Size`→(`widthPx,heightPx`) and a tap `Offset`→(`x,y`). The full
+point column (triangle + any overflow stack + count badge) hit-tests to that `Point`. Because
+`BoardGeometry`/`hitTest` are pure float arithmetic, they're JVM-unit-testable in `:app` with no
+Android dependency (`BoardGeometry.kt` must contain **no `androidx.*`/`android.*` imports**).
 
-### 4.2 Layout (fixed)
-Standard board: bottom-right quadrant = White's home (points **1–6**), bottom-left = **7–12**,
-top-left = **13–18**, top-right = **19–24**; central **bar** column between the halves;
-**bear-off tray** down the right edge. Points are alternating-tone triangles.
+### 4.2 Layout (fixed) — continuous path
+Standard board, so a player's path is one continuous sweep. Quadrants and **intra-quadrant index
+order**:
+- **Bottom-right = White home, points 1–6**, with **1 nearest the right edge** increasing leftward to 6 at the bar.
+- **Bottom-left = 7–12**, 7 just left of the bar increasing leftward to 12 at the left edge.
+- **Top-left = 13–18**, 13 at the left edge increasing rightward to 18 at the bar.
+- **Top-right = Black home, points 19–24**, 19 just right of the bar increasing rightward to 24 at the right edge.
+
+This makes White's 24→1 path sweep continuously (top-right→top-left→bottom-left→bottom-right) with
+no jump at the bar, and points **1 and 24 sit adjacent to the right-edge trays**. Central **bar**
+column between the halves. **Two bear-off trays on the right edge: White's in the bottom-right
+(beside 1–6), Black's in the top-right (beside 19–24).** Points are alternating-tone triangles.
 
 ### 4.3 Drawn elements
-- **Checkers:** filled circles with a subtle inner ring (white `#F4F1EA` + `#C9C2B0` ring; black
-  `#23262B` + `#3A3F47` ring). Stack up a point; when a point holds >5, compress/fan and draw a
-  small count badge.
-- **Dice:** two rounded squares with drawn pips (four when doubles); a die consumed by the staged
-  turn is dimmed.
-- **Bar & trays:** checkers sent to the bar render in the central bar; borne-off checkers stack in
-  the owner's tray.
-- **Highlights (amber `#E0A526`):** the selected checker's origin point and a glow on each legal
-  destination. A whose-turn / phase indicator (text) at the top; a small **pip-count** readout per
-  side.
-- **Theme:** single **teal felt** default (`#1F4E4A`; cream `#E8DCC0` / tan `#9C6B3F` points) in a
-  `BoardColors` object so themes are easy to add later. No theme switching this phase.
-- **No animations:** checkers snap to position; each committed sub-move re-renders the board.
+- **Checkers:** filled circles with a subtle inner ring (white `#F4F1EA`+`#C9C2B0`; black
+  `#23262B`+`#3A3F47`). Stack up a point; >5 → compress/fan + a small count badge.
+- **Dice:** two rounded squares with pips (four when doubles); a die consumed by the staged turn
+  is dimmed.
+- **Bar & trays:** a checker on the bar is drawn in the central bar on its owner's far side; on
+  tap, its entry destinations highlight in the **opponent's home quadrant** (White entry → top-right
+  19–24, Black entry → bottom-right 1–6). Borne-off checkers stack in the owner's tray. The mover's
+  off-tray is highlighted as a destination **only when `legalNextSubMoves` contains an off sub-move**
+  from the selected point; otherwise inert.
+- **Highlights (amber `#E0A526`):** the selected origin and a glow on each legal destination.
+- **Active-player cue (required):** a prominent "WHITE/BLACK to move" banner plus a tint of the
+  active side's home quadrant — so the inverted-Black case is unambiguous.
+- **Pip count:** White's count in the bottom half (beside its home), Black's in the top half; each
+  is that player's standard distance-to-bear-off (White: Σ point index; Black: Σ 25−index; bar
+  checker = 25), from `Scoring.pipCount`.
+- **Theme:** single **teal felt** default in a `BoardColors` object (kept per owner decision; one
+  palette, no switching). A minimal `MaterialTheme` wraps the screen because the Commit/Undo/New-Game
+  controls and banner use Material3 components.
+- **No animations:** checkers snap; each committed sub-move re-renders the board.
 
-## 5. State & interaction (`GameViewModel`)
+## 5. State & interaction (`GameController` + `GameViewModel`)
 
-`GameViewModel` exposes one immutable `GameUiState` via `StateFlow`; the Canvas renders it. The
-ViewModel holds turn/UI state and delegates **all** rules to `:core`. A `DiceRoller` is injected
-(`RandomDiceRoller` in the app, `SeededDiceRoller` in tests).
+To keep the turn logic JVM-testable, it lives in a **pure `GameController`** (plain Kotlin — no
+`androidx.lifecycle`, no `Dispatchers.Main`) that owns the state machine and produces an immutable
+`GameUiState`. **`GameViewModel`** (a real `androidx.lifecycle.ViewModel`, so it survives
+configuration changes) is a thin adapter: it holds a `GameController`, exposes
+`StateFlow<GameUiState>`, forwards taps, and emits one-shot UI events. **Process death loses the
+game** (acceptable; no `SavedStateHandle` yet — that seam is Phase 4).
 
-### 5.1 Held state
-`committed: BoardState` (board at the start of the current turn), `dice: Dice?`,
-`staged: List<SubMove>`, `selectedPoint: Int?`. Derived each update: `partial` (= `committed`
-with `staged` applied, mover not yet flipped — this is the board drawn), `remainingDice`,
-`legalNextSubMoves`, highlighted destinations, `phase`, and pip counts.
+`GameController` takes an **injectable initial `BoardState`** (default `startingPosition()`) and an
+injected `DiceRoller` (`RandomDiceRoller` in the app, `SeededDiceRoller` in tests) — so auto-pass
+and game-over are testable from constructed positions without playing hundreds of moves.
 
-### 5.2 GameUiState (what the Canvas needs)
-The `partial` board (points/bar/off), the dice with per-die used flags, `selectedPoint`, the set
-of highlighted destination targets, `toMove`, `phase`, both pip counts, and (when over) the winner
-+ value. One-shot UI events (e.g. "No legal moves") are emitted via a separate channel/`SharedFlow`.
+### 5.1 Held state (in `GameController`)
+`committed: BoardState`, `dice: Dice?`, `staged: List<SubMove>`, `selectedOrigin: BoardTarget?`.
+Derived each update: `partial` (= `committed` with `staged` applied, mover not flipped — the board
+drawn), `remainingDice` (= `dice.pips()` as a **multiset** minus the multiset of `staged.map{die}`),
+`legalNextSubMoves`, highlighted destinations, `phase`, both pip counts.
+
+### 5.2 `GameUiState` + `Phase` (own file, pure, no Android)
+A data class carrying the `partial` board (points/bar/off), dice with per-die used flags,
+`selectedOrigin`, the highlighted destination set, `toMove`, `phase`, both pip counts, and (when
+over) winner + value. One-shot events use a **`Channel<UiEvent>`** exposed as `receiveAsFlow()` and
+collected in `GameScreen` inside a `LaunchedEffect` (consumed-once semantics — not `SharedFlow`).
 
 ### 5.3 Turn phases
-- **NeedRoll** (`dice == null`): tap the dice (or the side panel) → roll. Then
-  `legalMoves(committed, dice)`: if empty → emit "No legal moves" and **auto-pass** (`pass`,
-  clear dice → other player's NeedRoll); else → Moving.
+- **NeedRoll** (`dice == null`): tap the dice → roll. Then `legalMoves(committed, dice)`: if empty
+  → emit a **"No legal moves — passing" event that the player acknowledges (tap to continue)** then
+  **auto-pass** (`pass`, clear dice → other player's NeedRoll); else → Moving. (Termination: a
+  closed-out player keeps passing only until the opponent's forced progress reopens an entry — it
+  cannot loop forever.)
 - **Moving:** tap a checker whose origin is in `legalNextSubMoves` → select + highlight its
-  destinations; tap a highlighted destination → append that `SubMove` to `staged`; tap elsewhere →
-  deselect. **Undo** pops the last staged sub-move. When `maxUsablePips(partial, remaining) == 0`
-  → **Committable**.
-- **Committable:** **Commit** applies `Move(staged)` via `MoveGenerator.apply(committed, …)` →
-  next `committed` (turn flips), clears staged/dice. Then `Scoring.isGameOver` → GameOver, else
-  next player's NeedRoll.
-- **GameOver:** overlay banner showing winner + single/gammon/backgammon (from
-  `Scoring.winnerAndValue`) and a **New Game** button (resets to `startingPosition()`).
+  destinations; tap a highlighted destination → append that `SubMove`. **Precedence:** if a tapped
+  point is *both* a highlighted destination and a legal origin, the **destination wins** (re-select
+  requires deselecting first by tapping empty space). Tapping a non-destination, non-origin →
+  deselect. **Undo** pops the last staged sub-move (no-op when `staged` is empty) and recomputes.
+  When `maxUsablePips(partial, remaining) == 0` → **Committable**.
+- **Committable:** **Commit** (no-op unless phase is Committable; transitions phase atomically to
+  guard double-taps) applies `Move(staged)` via `MoveGenerator.apply` → next `committed` (turn
+  flips), clears staged/dice. Then `Scoring.isGameOver` → GameOver, else next player's NeedRoll.
+- **GameOver:** overlay banner with winner + single/gammon/backgammon (`Scoring.winnerAndValue`,
+  read from off-counts so the `toMove` flip is irrelevant) and a **New Game** button (resets to
+  the initial `BoardState`).
 
-Bar/bear-off need no special UI: on the bar, the planner offers only entry sub-moves (tap the bar
-checker → entry points highlight); bearing off offers the off-tray as the destination.
-
-### 5.4 Threading
-Planner/engine calls are synchronous on the main thread — boards are tiny and there's no AI
-search yet (off-main-thread work arrives in Phase 2).
+### 5.4 Threading & performance
+`GameController` is synchronous on the main thread (no AI yet). Planner calls must complete in
+well under a frame (~16 ms) — board states are tiny — but `legalNextSubMoves` invokes
+`maxUsablePips` per candidate, and opening **doubles** enumerate a large tree, so **memoize
+`maxUsablePips` by `BoardState` within a single tap's computation**. Add a `:core` perf assertion
+(opening doubles, bar-entry positions) bounding a planner call. Phase 2's AI will wrap
+`chooseMove` in `viewModelScope.launch(Dispatchers.Default)`; the `StateFlow` contract is unchanged
+by that, and no `:core` change may introduce search on the main thread.
 
 ## 6. Package layout (`:app`)
 
@@ -178,38 +236,59 @@ search yet (off-main-thread work arrives in Phase 2).
 app/src/main/java/dk/rlunde/backgammon/
 ├── MainActivity.kt              // sets Compose content -> GameScreen
 ├── ui/
-│   ├── GameScreen.kt            // top-level composable; collects GameUiState; buttons
+│   ├── screens/
+│   │   └── GameScreen.kt        // top-level composable; collects state; buttons; event LaunchedEffect
 │   ├── board/
-│   │   ├── BoardCanvas.kt       // Canvas draw + pointerInput; adapts Compose Size/Offset
-│   │   ├── BoardGeometry.kt     // pure float geometry + hitTest + BoardTarget + Rect
-│   │   └── BoardColors.kt       // teal theme palette
-│   └── theme/                   // Material theme scaffolding (default)
+│   │   ├── BoardCanvas.kt       // @Composable entry only: draw + pointerInput; delegates tap dispatch
+│   │   ├── BoardGeometry.kt     // pure float geometry + hitTest + BoardTarget + BoardRect (no androidx.*)
+│   │   └── BoardColors.kt       // teal palette
+│   └── theme/                   // minimal Material3 theme (used by buttons/banner)
+├── game/
+│   ├── GameController.kt        // pure turn state machine; injectable initial BoardState + DiceRoller
+│   └── GameUiState.kt           // GameUiState data class + Phase + UiEvent (pure, no Android)
 └── viewmodel/
-    └── GameViewModel.kt         // GameUiState, phases, staging, commit/undo, new game
+    └── GameViewModel.kt         // androidx ViewModel; holds GameController; StateFlow + event Channel
 ```
-`AndroidManifest.xml` declares a single launcher `MainActivity` and **no `INTERNET` permission**
-(offline, per product spec). `BoardGeometry` lives in `:app/ui/board` but depends on no Android or
-Compose types (plain floats), so its tests run as fast JVM unit tests in `:app`.
+`AndroidManifest.xml`: single launcher `MainActivity`, **no `INTERNET` permission** (offline).
+JVM unit tests for `GameController`, `GameUiState`, and `BoardGeometry` live under `app/src/test/`.
 
 ## 7. Testing strategy
 
-- **Turn-planner (`:core`, JVM, TDD):** `maxUsablePips`/`legalNextSubMoves` — must-use-both enforced
-  incrementally (a stranding sub-move is not offered); must-play-larger; bar-entry-only-while-on-bar;
-  bear-off destinations; doubles staged up to 4; Committable when `maxUsablePips == 0`; a fully
-  staged sequence's outcome matches a `legalMoves` result.
-- **`GameViewModel` (`:app`, JVM unit test, `SeededDiceRoller` + coroutines-test):** roll→move→commit
-  flips the turn; auto-pass on a no-legal-move roll; undo pops a sub-move; commit gated until the max
-  is used; game-over → correct winner/value; new game resets.
-- **`BoardGeometry.hitTest` (`:app`, JVM, pure):** tap inside each of the 24 point rects + bar/tray/dice
-  returns the right `BoardTarget`.
-- **Manual emulator smoke (Phase-1 acceptance):** build → install → launch on **Pixel 9 Pro**; play a
-  full hot-seat game exercising a hit, a bar re-entry, a bear-off, and the win banner. Automated
-  Compose instrumented UI tests are deferred.
+- **`TurnPlanner` (`:core`, JVM, TDD):** `maxUsablePips`/`legalNextSubMoves` — must-use-both
+  enforced incrementally (a stranding sub-move is not offered); must-play-larger; bar-entry-only;
+  bear-off destinations; **doubles staged up to 4 (non-empty across all four)**; Committable when
+  `maxUsablePips == 0`; a fully-staged sequence's outcome matches a `legalMoves` result; the
+  max-pip-sum ⇒ max-dice invariant. **All 55 existing `:core` tests must remain green** (regression
+  gate).
+- **`GameController` (`:app`, plain JVM unit tests, `SeededDiceRoller`):** roll→move→commit flips the
+  turn; **auto-pass from a constructed blocked position + seed** (both die entries blocked, checker
+  on bar); undo pops a sub-move and re-derives destinations correctly; commit gated until max used;
+  **game-over from an injected near-terminal position** → correct winner/value; new game resets;
+  **negative paths** — tap a non-legal destination (clears selection, staged unchanged), tap during
+  NeedRoll (no-op), any tap after GameOver (no-op), undo with nothing staged (no-op). No
+  `androidx.lifecycle`/`Dispatchers.Main` involved (logic is in the pure controller).
+- **`BoardGeometry.hitTest` (`:app`, JVM, pure):** at a canonical canvas size (e.g. 1080×1920), a
+  tap inside each of the 24 point rects + bar + both trays + dice returns the right `BoardTarget`,
+  and a tap just outside a hit zone returns `null` (boundary tests). `BoardCanvas` feeds its
+  **measured** `Size` into the same `BoardGeometry` (no hardcoded size in production).
+- **Manual emulator smoke — scripted acceptance (Pixel 9 Pro):** a written step list using
+  `SeededDiceRoller` with a pinned seed (or explicit forced rolls via a debug hook) that
+  deterministically reaches each exercise, with an observable pass/fail per step: **(a) a hit**
+  (a checker lands on a lone opponent checker → it appears on the bar), **(b) bar re-entry** (the
+  barred checker can only move to entry points, in the opponent's home quadrant), **(c) a bear-off**
+  (off-tray highlights only when legal; checker moves to the tray), **(d) auto-pass** (a blocked
+  roll shows the acknowledged pass and flips turn), **(e) the win banner** (correct winner + value).
+  Automated Compose instrumented UI tests remain deferred.
 
 ## 8. Success criteria
 
-- `:app` builds, installs, and launches on the Pixel 9 Pro emulator straight into a hot-seat game.
+- **Gate A:** a blank `:app` builds, installs, and launches on the Pixel 9 Pro emulator (pinned
+  toolchain versions recorded in §2.1 / the version catalog).
+- **Gate B:** all 55 `:core` tests stay green after any wrapper bump.
+- The full `:app` builds, installs, and launches straight into a hot-seat game.
 - A full hot-seat game is playable to completion via tap-to-roll / tap-to-move / undo / commit,
-  including hitting, bar re-entry, bear-off, auto-pass, and a correct win banner.
-- JVM tests green: turn-planner, `GameViewModel` turn loop (seeded), `BoardGeometry` hit-test.
+  including hitting, bar re-entry, bear-off, the acknowledged auto-pass, and a correct win banner
+  (the scripted smoke passes every step).
+- JVM tests green: `TurnPlanner`, `GameController` turn loop + negative paths (seeded/injected),
+  `BoardGeometry` hit-test + boundaries.
 - `:core` remains Android-free; `:app` depends on `:core`; no `INTERNET` permission in the manifest.
