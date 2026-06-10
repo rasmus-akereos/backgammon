@@ -98,12 +98,18 @@ die's distance (respecting bar-first, blocked points, hitting, bear-off), apply 
 `SubMove`, recurse on the remaining dice. Collect every complete sequence. For non-doubles,
 try **both die orderings** (3-then-5 can reach states 5-then-3 cannot).
 
-**Stage 2 — Filter to maximum pip usage (spec §5 rule 5).**
-Keep only sequences using the **most dice**. The "must play the larger die when only one is
-playable" rule falls out automatically: a sequence playing the larger single die uses more
-pips than one playing the smaller, so the max-pips filter selects it. Doubles: keep sequences
-using the most of the four. One filter implements the entire "use as many dice as possible /
-prefer larger" rule — no special-casing.
+**Stage 2 — Filter to maximum total pips consumed (spec §5 rule 5).**
+Keep only sequences that consume the **maximum total pips** (sum of the die values actually
+played). This single metric provably subsumes both halves of rule 5 — note it is *total pips*,
+**not** "most dice," which would be incorrect:
+- Any two-die sequence consumes `a+b` pips, strictly more than `max(a,b)` ≥ any one-die
+  sequence → forces "use both dice whenever possible." ✓
+- When both dice can't be played together, among the one-die plays the larger die consumes
+  more pips → forces "must play the larger die." ✓ (A "most dice" count would tie the two
+  single-die plays at 1 and fail to force the larger — hence total pips, not dice count.)
+- Doubles → maximizes the number of the four sub-moves played. ✓
+
+No special-casing of the larger-die rule is needed.
 
 **Stage 3 — Deduplicate by resulting board state.**
 Different sub-move orders can yield identical end positions. Dedup `Move`s by the `BoardState`
