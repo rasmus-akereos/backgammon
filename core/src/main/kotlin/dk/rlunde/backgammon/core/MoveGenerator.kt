@@ -123,6 +123,16 @@ object MoveGenerator {
         return results
     }
 
+    // ---- Public API: legal moves for a full turn -----------------------------------------
+
+    /** All distinct, fully-legal turns for [state] given [dice]. Empty list = forced pass. */
+    fun legalMoves(state: BoardState, dice: Dice): List<Move> {
+        val sequences = enumerateSequences(state, dice.pips())
+        val best = filterMaxPips(sequences)
+        if (best.singleOrNull()?.isEmpty() == true) return emptyList() // only the no-move "sequence"
+        return dedupByOutcome(state, best)
+    }
+
     // ---- Stage 2: maximum total pips consumed ---------------------------------------------
 
     private fun filterMaxPips(sequences: List<List<SubMove>>): List<List<SubMove>> {
