@@ -54,6 +54,80 @@ object MoveGenerator {
         return BoardState(points, bar, off, mover) // toMove unchanged here; apply() flips once at end
     }
 
+    // ---- single-die legality ---------------------------------------------------------------
+
+    /** All legal single-die sub-moves for state.toMove using [die], honouring bar-first. */
+    private fun legalSubMovesFor(state: BoardState, die: Int): List<SubMove> {
+        val mover = state.toMove
+
+        // Bar-first: if any checker is on the bar, the ONLY legal sub-move is an entry.
+        if (state.barCount(mover) > 0) {
+            val to = entryPoint(mover, die)
+            return if (state.isBlockedFor(mover, to)) {
+                emptyList()
+            } else {
+                listOf(SubMove(barFrom(mover), to, die, isHit = state.isBlotFor(mover, to)))
+            }
+        }
+
+        val subs = mutableListOf<SubMove>()
+
+        // Normal moves: any of the mover's checkers to an on-board destination.
+        for (from in 1..24) {
+            if (state.count(mover, from) == 0) continue
+            val to = normalTo(mover, from, die)
+            if (to in 1..24 && !state.isBlockedFor(mover, to)) {
+                subs.add(SubMove(from, to, die, isHit = state.isBlotFor(mover, to)))
+            }
+        }
+
+        // Bear-off: only when all 15 are home.
+        if (allHome(state, mover)) {
+            val occupied = homeRange(mover).filter { state.count(mover, it) > 0 }
+            val maxDist = occupied.maxOfOrNull { distToOff(mover, it) } ?: 0
+            for (from in occupied) {
+                val dist = distToOff(mover, from)
+                val exact = dist == die
+                val overflow = dist == maxDist && die > dist
+                if (exact || overflow) {
+                    subs.add(SubMove(from, offSentinel(mover), die, isHit = false))
+                }
+            }
+        }
+        return subs
+    }
+
+    private fun allHome(state: BoardState, player: Player): Boolean {
+        if (state.barCount(player) > 0) return false
+        val outside = if (player == Player.WHITE) 7..24 else 1..18
+        return outside.all { state.count(player, it) == 0 }
+    }
+
+    // ---- Stage 1: enumerate every complete dice sequence ----------------------------------
+
+    private fun enumerateSequences(state: BoardState, remainingDice: List<Int>): List<List<SubMove>> {
+        if (remainingDice.isEmpty()) return listOf(emptyList())
+        val results = mutableListOf<List<SubMove>>()
+        var anyPlayable = false
+        for (die in remainingDice.toSet()) { // distinct values; doubles collapse naturally
+            for (sm in legalSubMovesFor(state, die)) {
+                anyPlayable = true
+                val next = applySubMove(state, sm)
+                val rest = remainingDice.toMutableList().apply { remove(die) }
+                for (tail in enumerateSequences(next, rest)) {
+                    results.add(listOf(sm) + tail)
+                }
+            }
+        }
+        if (!anyPlayable) results.add(emptyList()) // no die playable from here -> stop
+        return results
+    }
+
+    // ---- test-only entry points (replaced by legalMoves wiring in Task 12) ----------------
+    internal fun legalSubMovesForTest(state: BoardState, die: Int) = legalSubMovesFor(state, die)
+    internal fun enumerateSequencesForTest(state: BoardState, dice: List<Int>) =
+        enumerateSequences(state, dice)
+
     private fun totalCheckers(state: BoardState, player: Player): Int {
         val onBoard = (1..24).sumOf { state.count(player, it) }
         return onBoard + state.barCount(player) + state.offCount(player)
