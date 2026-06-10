@@ -152,15 +152,6 @@ object MoveGenerator {
         return result
     }
 
-    internal fun filterMaxPipsForTest(seqs: List<List<SubMove>>) = filterMaxPips(seqs)
-    internal fun dedupByOutcomeForTest(state: BoardState, seqs: List<List<SubMove>>) =
-        dedupByOutcome(state, seqs)
-
-    // ---- test-only entry points (replaced by legalMoves wiring in Task 12) ----------------
-    internal fun legalSubMovesForTest(state: BoardState, die: Int) = legalSubMovesFor(state, die)
-    internal fun enumerateSequencesForTest(state: BoardState, dice: List<Int>) =
-        enumerateSequences(state, dice)
-
     private fun totalCheckers(state: BoardState, player: Player): Int {
         val onBoard = (1..24).sumOf { state.count(player, it) }
         return onBoard + state.barCount(player) + state.offCount(player)
@@ -168,4 +159,12 @@ object MoveGenerator {
 
     private fun conservesCheckers(before: BoardState, after: BoardState): Boolean =
         Player.entries.all { player -> totalCheckers(before, player) == totalCheckers(after, player) }
+
+    // ---- test-only seams: expose the private stage functions for unit testing ----------------
+    internal fun legalSubMovesForTest(state: BoardState, die: Int) = legalSubMovesFor(state, die)
+    internal fun enumerateSequencesForTest(state: BoardState, dice: List<Int>) =
+        enumerateSequences(state, dice)
+    internal fun filterMaxPipsForTest(seqs: List<List<SubMove>>) = filterMaxPips(seqs)
+    internal fun dedupByOutcomeForTest(state: BoardState, seqs: List<List<SubMove>>) =
+        dedupByOutcome(state, seqs)
 }

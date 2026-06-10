@@ -42,6 +42,8 @@ class LegalMovesTest {
     @Test fun `dedup returns distinct resulting states only`() {
         val p = IntArray(26); p[13] = 2
         val moves = MoveGenerator.legalMoves(board(p), Dice(3, 5))
+        // Exactly two distinct outcomes: split the checkers to 8 & 10, or run one checker to 5.
+        assertEquals(2, moves.size)
         val outcomes = moves.map { MoveGenerator.apply(board(p), it) }
         assertEquals(outcomes.size, outcomes.toSet().size)
     }
