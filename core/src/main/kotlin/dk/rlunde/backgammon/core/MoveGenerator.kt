@@ -123,6 +123,29 @@ object MoveGenerator {
         return results
     }
 
+    // ---- Stage 2: maximum total pips consumed ---------------------------------------------
+
+    private fun filterMaxPips(sequences: List<List<SubMove>>): List<List<SubMove>> {
+        val maxPips = sequences.maxOfOrNull { seq -> seq.sumOf { it.die } } ?: 0
+        return sequences.filter { seq -> seq.sumOf { it.die } == maxPips }
+    }
+
+    // ---- Stage 3: distinct resulting board states only ------------------------------------
+
+    private fun dedupByOutcome(state: BoardState, sequences: List<List<SubMove>>): List<Move> {
+        val seen = HashSet<BoardState>()
+        val result = mutableListOf<Move>()
+        for (seq in sequences) {
+            val outcome = apply(state, Move(seq))
+            if (seen.add(outcome)) result.add(Move(seq))
+        }
+        return result
+    }
+
+    internal fun filterMaxPipsForTest(seqs: List<List<SubMove>>) = filterMaxPips(seqs)
+    internal fun dedupByOutcomeForTest(state: BoardState, seqs: List<List<SubMove>>) =
+        dedupByOutcome(state, seqs)
+
     // ---- test-only entry points (replaced by legalMoves wiring in Task 12) ----------------
     internal fun legalSubMovesForTest(state: BoardState, die: Int) = legalSubMovesFor(state, die)
     internal fun enumerateSequencesForTest(state: BoardState, dice: List<Int>) =
