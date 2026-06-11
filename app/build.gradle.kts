@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":ai"))
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.graphics)

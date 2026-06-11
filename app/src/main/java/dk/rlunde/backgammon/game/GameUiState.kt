@@ -29,4 +29,8 @@ data class GameUiState(
     val blackPip: Int,
     val winner: Player?,
     val winValue: Int,
+    /** Set by the VM, not the pure controller: true while the AI is choosing its move. */
+    val aiThinking: Boolean = false,
+    /** Set by the VM: the colour the computer plays (null = hot-seat). */
+    val aiSide: Player? = null,
 )

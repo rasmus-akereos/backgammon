@@ -19,12 +19,18 @@ import dk.rlunde.backgammon.ui.board.DiceRow
 import dk.rlunde.backgammon.viewmodel.GameViewModel
 
 @Composable
-fun GameScreen(vm: GameViewModel = viewModel()) {
+fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
+    val isAiTurn = state.aiSide != null && state.toMove == state.aiSide
     var showPass by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        vm.events.collect { if (it is UiEvent.NoLegalMoves) showPass = true }
+        vm.events.collect {
+            if (it is UiEvent.NoLegalMoves) {
+                val s = vm.uiState.value
+                if (s.aiSide == null || s.toMove != s.aiSide) showPass = true
+            }
+        }
     }
 
     // Surface gives the screen the dark theme background AND a light content colour, so the
@@ -43,10 +49,11 @@ fun GameScreen(vm: GameViewModel = viewModel()) {
             TrackingPanel(
                 state = state,
                 modifier = Modifier.weight(0.2f).fillMaxHeight(),
+                isAiTurn = isAiTurn,
                 onRoll = vm::onRoll,
                 onUndo = vm::onUndo,
                 onCommit = vm::onCommit,
-                onNewGame = vm::onNewGame,
+                onNewGame = onNewGame,
             )
         }
     }
@@ -65,6 +72,7 @@ fun GameScreen(vm: GameViewModel = viewModel()) {
 private fun TrackingPanel(
     state: GameUiState,
     modifier: Modifier = Modifier,
+    isAiTurn: Boolean = false,
     onRoll: () -> Unit,
     onUndo: () -> Unit,
     onCommit: () -> Unit,
@@ -117,22 +125,25 @@ private fun TrackingPanel(
         }
 
         // --- Controls (bottom) -----------------------------------------------------------
-        when (state.phase) {
-            Phase.NEED_ROLL -> Button(
-                onClick = onRoll,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFC62828),
-                    contentColor = Color.White,
-                ),
-            ) { Text("Roll") }
-            Phase.MOVING -> Button(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
-            Phase.COMMITTABLE -> {
-                Button(onClick = onCommit, modifier = Modifier.fillMaxWidth()) { Text("Commit") }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
+        when {
+            isAiTurn -> Text("AI thinking…", style = MaterialTheme.typography.titleMedium)
+            else -> when (state.phase) {
+                Phase.NEED_ROLL -> Button(
+                    onClick = onRoll,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFC62828),
+                        contentColor = Color.White,
+                    ),
+                ) { Text("Roll") }
+                Phase.MOVING -> Button(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
+                Phase.COMMITTABLE -> {
+                    Button(onClick = onCommit, modifier = Modifier.fillMaxWidth()) { Text("Commit") }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
+                }
+                Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
             }
-            Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
         }
     }
 }
