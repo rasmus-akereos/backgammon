@@ -1,8 +1,6 @@
 package dk.rlunde.backgammon.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,24 +26,28 @@ fun GameScreen(vm: GameViewModel = viewModel()) {
         vm.events.collect { if (it is UiEvent.NoLegalMoves) showPass = true }
     }
 
-    Row(Modifier.fillMaxSize().systemBarsPadding().padding(8.dp)) {
-        // Board fills ~80% of the width; checker size is capped by point height so it never overflows.
-        BoardCanvas(
-            state = state,
-            onTap = vm::onTap,
-            modifier = Modifier.weight(0.8f).fillMaxHeight(),
-        )
+    // Surface gives the screen the dark theme background AND a light content colour, so the
+    // panel text reads white instead of falling back to black-on-dark.
+    Surface(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize().systemBarsPadding().padding(8.dp)) {
+            // Board fills ~80% of the width; checker size is capped by point height so it never overflows.
+            BoardCanvas(
+                state = state,
+                onTap = vm::onTap,
+                modifier = Modifier.weight(0.8f).fillMaxHeight(),
+            )
 
-        Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(12.dp))
 
-        TrackingPanel(
-            state = state,
-            modifier = Modifier.weight(0.2f).fillMaxHeight(),
-            onRoll = vm::onRoll,
-            onUndo = vm::onUndo,
-            onCommit = vm::onCommit,
-            onNewGame = vm::onNewGame,
-        )
+            TrackingPanel(
+                state = state,
+                modifier = Modifier.weight(0.2f).fillMaxHeight(),
+                onRoll = vm::onRoll,
+                onUndo = vm::onUndo,
+                onCommit = vm::onCommit,
+                onNewGame = vm::onNewGame,
+            )
+        }
     }
 
     if (showPass) {
@@ -67,10 +69,8 @@ private fun TrackingPanel(
     onCommit: () -> Unit,
     onNewGame: () -> Unit,
 ) {
-    Column(
-        modifier.verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        // --- Stats (top) -----------------------------------------------------------------
         val turnLabel = if (state.toMove == Player.WHITE) "WHITE to move" else "BLACK to move"
         Text(
             text = if (state.phase == Phase.GAME_OVER) "Game over" else turnLabel,
@@ -89,11 +89,6 @@ private fun TrackingPanel(
 
         Spacer(Modifier.height(16.dp))
 
-        if (state.dice != null) {
-            DiceRow(faces = state.dice.pips(), remaining = state.remainingDice)
-            Spacer(Modifier.height(16.dp))
-        }
-
         // Move tracker: the sub-moves staged so far this turn.
         Text("This turn", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
@@ -105,8 +100,22 @@ private fun TrackingPanel(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        if (state.phase == Phase.GAME_OVER && state.winner != null) {
+            Spacer(Modifier.height(16.dp))
+            val v = when (state.winValue) { 3 -> "backgammon"; 2 -> "gammon"; else -> "single" }
+            Text("${state.winner} wins ($v)", style = MaterialTheme.typography.titleMedium)
+        }
 
+        // Push the dice + controls to the bottom of the panel.
+        Spacer(Modifier.weight(1f))
+
+        // --- Dice, just above the controls -----------------------------------------------
+        if (state.dice != null) {
+            DiceRow(faces = state.dice.pips(), remaining = state.remainingDice)
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // --- Controls (bottom) -----------------------------------------------------------
         when (state.phase) {
             Phase.NEED_ROLL -> Button(onClick = onRoll, modifier = Modifier.fillMaxWidth()) { Text("Roll") }
             Phase.MOVING -> Button(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
@@ -116,12 +125,6 @@ private fun TrackingPanel(
                 OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
             }
             Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
-        }
-
-        if (state.phase == Phase.GAME_OVER && state.winner != null) {
-            Spacer(Modifier.height(16.dp))
-            val v = when (state.winValue) { 3 -> "backgammon"; 2 -> "gammon"; else -> "single" }
-            Text("${state.winner} wins ($v)", style = MaterialTheme.typography.titleMedium)
         }
     }
 }

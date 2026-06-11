@@ -11,5 +11,8 @@ object BoardColors {
     val blackChecker = Color(0xFF23262B)
     val blackRing = Color(0xFF3A3F47)
     val highlight = Color(0xFFE0A526)
-    val bar = Color(0xFF153833)
+    // Slate "trough" for the central bar and bear-off trays — distinct from the green felt so
+    // checkers parked there (hit / borne off) stand out against the background.
+    val bar = Color(0xFF4A515A)
+    val tray = Color(0xFF3A4048)
 }

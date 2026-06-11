@@ -48,6 +48,10 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     }
     drawBarCheckers(g, state.board.barCount(Player.WHITE), Player.WHITE)
     drawBarCheckers(g, state.board.barCount(Player.BLACK), Player.BLACK)
+    for (p in listOf(Player.WHITE, Player.BLACK)) {
+        val tr = g.bearOffRect(p)
+        drawRect(BoardColors.tray, topLeft = Offset(tr.l, tr.t), size = Size(tr.r - tr.l, tr.b - tr.t))
+    }
     drawTray(g.bearOffRect(Player.WHITE), state.board.offCount(Player.WHITE), Player.WHITE)
     drawTray(g.bearOffRect(Player.BLACK), state.board.offCount(Player.BLACK), Player.BLACK)
     state.selectedOrigin?.let { highlightTarget(g, it) }
