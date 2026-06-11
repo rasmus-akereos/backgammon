@@ -28,7 +28,7 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
         vm.events.collect {
             if (it is UiEvent.NoLegalMoves) {
                 val s = vm.uiState.value
-                if (!(s.aiSide != null && s.toMove == s.aiSide)) showPass = true
+                if (s.aiSide == null || s.toMove != s.aiSide) showPass = true
             }
         }
     }

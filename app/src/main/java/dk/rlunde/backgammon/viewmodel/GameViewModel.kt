@@ -65,6 +65,10 @@ class GameViewModel : ViewModel() {
         aiJob = null
         aiThinking = false
         started = false
+        // Fully drop the previous game's AI so startGame rebuilds a clean driver (no stuck guard).
+        driver = null
+        aiPlayer = null
+        aiSide = null
         controller = GameController()
         publish()
     }
