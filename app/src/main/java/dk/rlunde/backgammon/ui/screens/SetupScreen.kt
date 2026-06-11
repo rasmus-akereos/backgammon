@@ -1,10 +1,13 @@
 package dk.rlunde.backgammon.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dk.rlunde.backgammon.ai.Difficulty
 import dk.rlunde.backgammon.core.Player
@@ -18,31 +21,44 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
     var opponent by remember { mutableStateOf(Opponent.COMPUTER) }
 
     Surface(Modifier.fillMaxSize()) {
+        // Landscape: title on top, the choice groups side by side, Start clearly below — all visible
+        // without scrolling. verticalScroll stays as a safety net for very short screens.
         Column(
-            Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
+            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
         ) {
             Text("New game", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(24.dp))
 
-            ChoiceRow("Opponent", listOf(
-                "Computer" to Opponent.COMPUTER, "Hot-seat" to Opponent.HOT_SEAT,
-            ), opponent) { opponent = it }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top,
+            ) {
+                ChoiceRow("Opponent", listOf(
+                    "Computer" to Opponent.COMPUTER, "Hot-seat" to Opponent.HOT_SEAT,
+                ), opponent) { opponent = it }
 
-            if (opponent == Opponent.COMPUTER) {
-                ChoiceRow("Difficulty", listOf(
-                    "Beginner" to Difficulty.BEGINNER, "Intermediate" to Difficulty.INTERMEDIATE,
-                ), difficulty) { difficulty = it }
+                if (opponent == Opponent.COMPUTER) {
+                    ChoiceRow("Difficulty", listOf(
+                        "Beginner" to Difficulty.BEGINNER, "Intermediate" to Difficulty.INTERMEDIATE,
+                    ), difficulty) { difficulty = it }
+                }
+
+                ChoiceRow("You play", listOf(
+                    "White" to Player.WHITE, "Black" to Player.BLACK, "Random" to null,
+                ), colorChoice) { colorChoice = it }
             }
 
-            ChoiceRow("You play", listOf(
-                "White" to Player.WHITE, "Black" to Player.BLACK, "Random" to null,
-            ), colorChoice) { colorChoice = it }
-
-            Spacer(Modifier.height(24.dp))
-            Button(onClick = { onStart(GameConfig(difficulty, colorChoice, opponent)) }) {
-                Text("Start")
+            Button(
+                onClick = { onStart(GameConfig(difficulty, colorChoice, opponent)) },
+                modifier = Modifier.fillMaxWidth(0.5f).height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFC62828), contentColor = Color.White,
+                ),
+            ) {
+                Text("Start game", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
