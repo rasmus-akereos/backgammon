@@ -147,6 +147,7 @@ class GameController(
             phase = phase,
             selectedOrigin = selectedOrigin,
             destinations = destinations,
+            stagedMoves = staged.toList(),
             whitePip = Scoring.pipCount(partial, Player.WHITE),
             blackPip = Scoring.pipCount(partial, Player.BLACK),
             winner = wv?.first,

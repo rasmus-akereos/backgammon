@@ -2,10 +2,8 @@ package dk.rlunde.backgammon.ui.board
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -17,11 +15,10 @@ import dk.rlunde.backgammon.game.GameUiState
 
 @Composable
 fun BoardCanvas(state: GameUiState, onTap: (BoardTarget) -> Unit, modifier: Modifier = Modifier) {
+    // Sizing is the caller's responsibility (see GameScreen): the geometry is proportional and
+    // adapts to whatever w×h the Canvas is given.
     Canvas(
         modifier = modifier
-            // Fill the whole available area (full screen width in landscape). The geometry is
-            // proportional, so it adapts to whatever w×h the slot provides.
-            .fillMaxSize()
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val g = BoardGeometry(size.width.toFloat(), size.height.toFloat())
@@ -55,7 +52,7 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     drawTray(g.bearOffRect(Player.BLACK), state.board.offCount(Player.BLACK), Player.BLACK)
     state.selectedOrigin?.let { highlightTarget(g, it) }
     state.destinations.forEach { highlightTarget(g, it) }
-    drawDice(g.diceRect(), state)
+    // Dice are rendered in the side panel (see GameScreen), not on the board.
 }
 
 private fun DrawScope.drawTriangle(r: BoardRect, color: Color, pointingUp: Boolean) {
@@ -67,11 +64,16 @@ private fun DrawScope.drawTriangle(r: BoardRect, color: Color, pointingUp: Boole
     drawPath(path, color)
 }
 
+private const val MAX_STACK_SHOWN = 5
+
 private fun DrawScope.drawStack(r: BoardRect, n: Int, player: Player, fromBottom: Boolean) {
-    val radius = (r.r - r.l) / 2f * 0.9f
+    // Cap by column width AND point height so up to MAX_STACK_SHOWN checkers always fit the point.
+    val byWidth = (r.r - r.l) / 2f * 0.9f
+    val byHeight = (r.b - r.t) / (2f * MAX_STACK_SHOWN) * 0.98f
+    val radius = minOf(byWidth, byHeight)
     val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
     val ring = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
-    val shown = minOf(n, 5)
+    val shown = minOf(n, MAX_STACK_SHOWN)
     for (k in 0 until shown) {
         val cy = if (fromBottom) r.b - radius - k * radius * 2 else r.t + radius + k * radius * 2
         drawCircle(ring, radius, Offset(r.cx, cy))
@@ -106,41 +108,4 @@ private fun DrawScope.highlightTarget(g: BoardGeometry, t: BoardTarget) {
         BoardTarget.Dice -> g.diceRect()
     }
     drawRect(BoardColors.highlight.copy(alpha = 0.35f), topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
-}
-
-private fun DrawScope.drawDice(r: BoardRect, state: GameUiState) {
-    val d = state.dice ?: return
-    val faces = d.pips()
-    val remaining = state.remainingDice.toMutableList()
-    val side = (r.b - r.t) * 0.8f
-    val gap = side * 0.18f
-    faces.forEachIndexed { idx, face ->
-        val used = !remaining.remove(face)
-        val left = r.l + gap + idx * (side + gap)
-        drawDie(left, r.cy - side / 2f, side, face, used)
-    }
-}
-
-/** A single die face: rounded white tile with the standard pip layout. A consumed die is dimmed. */
-private fun DrawScope.drawDie(left: Float, top: Float, side: Float, face: Int, used: Boolean) {
-    val body = if (used) Color.White.copy(alpha = 0.4f) else Color.White
-    val pip = if (used) BoardColors.blackChecker.copy(alpha = 0.45f) else BoardColors.blackChecker
-    drawRoundRect(
-        color = body,
-        topLeft = Offset(left, top),
-        size = Size(side, side),
-        cornerRadius = CornerRadius(side * 0.18f, side * 0.18f),
-    )
-    val pipR = side * 0.085f
-    fun pip(cxFrac: Float, cyFrac: Float) =
-        drawCircle(pip, pipR, Offset(left + cxFrac * side, top + cyFrac * side))
-    val lo = 0.28f; val mid = 0.5f; val hi = 0.72f
-    when (face) {
-        1 -> pip(mid, mid)
-        2 -> { pip(lo, lo); pip(hi, hi) }
-        3 -> { pip(lo, lo); pip(mid, mid); pip(hi, hi) }
-        4 -> { pip(lo, lo); pip(hi, lo); pip(lo, hi); pip(hi, hi) }
-        5 -> { pip(lo, lo); pip(hi, lo); pip(mid, mid); pip(lo, hi); pip(hi, hi) }
-        6 -> { pip(lo, lo); pip(hi, lo); pip(lo, mid); pip(hi, mid); pip(lo, hi); pip(hi, hi) }
-    }
 }

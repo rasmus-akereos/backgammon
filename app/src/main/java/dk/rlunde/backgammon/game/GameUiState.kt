@@ -3,6 +3,7 @@ package dk.rlunde.backgammon.game
 import dk.rlunde.backgammon.core.BoardState
 import dk.rlunde.backgammon.core.Dice
 import dk.rlunde.backgammon.core.Player
+import dk.rlunde.backgammon.core.SubMove
 import dk.rlunde.backgammon.ui.board.BoardTarget
 
 enum class Phase { NEED_ROLL, MOVING, COMMITTABLE, GAME_OVER }
@@ -22,6 +23,8 @@ data class GameUiState(
     val phase: Phase,
     val selectedOrigin: BoardTarget?,
     val destinations: Set<BoardTarget>,
+    /** Sub-moves staged so far this turn, in play order (for the move tracker). */
+    val stagedMoves: List<SubMove>,
     val whitePip: Int,
     val blackPip: Int,
     val winner: Player?,

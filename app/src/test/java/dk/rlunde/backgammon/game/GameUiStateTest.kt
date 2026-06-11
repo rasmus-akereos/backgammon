@@ -22,6 +22,7 @@ class GameUiStateTest {
             phase = Phase.NEED_ROLL,
             selectedOrigin = null,
             destinations = emptySet(),
+            stagedMoves = emptyList(),
             whitePip = 167,
             blackPip = 167,
             winner = null,

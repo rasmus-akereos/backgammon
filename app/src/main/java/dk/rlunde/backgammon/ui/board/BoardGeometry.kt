@@ -24,7 +24,7 @@ sealed interface BoardTarget {
  * top-right = Black home 19..24 (24 nearest the right edge). Central bar between the halves.
  */
 class BoardGeometry(private val w: Float, private val h: Float) {
-    private val trayW = w * 0.10f                 // right-edge tray/dice column
+    private val trayW = w * 0.06f                 // slim right-edge bear-off tray column
     private val playW = w - trayW
     private val barW = playW * 0.08f
     private val halfW = (playW - barW) / 2f        // each 6-point half
