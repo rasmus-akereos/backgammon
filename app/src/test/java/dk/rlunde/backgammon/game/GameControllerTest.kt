@@ -57,7 +57,8 @@ class GameControllerTest {
     }
 
     @Test fun `game over reports winner and value from a near-terminal position`() {
-        val p = IntArray(26); p[2] = 1; p[19] = -15
+        // Sole WHITE checker on point 1: ANY die bears it off, so the test is seed-independent.
+        val p = IntArray(26); p[1] = 1; p[19] = -15
         val c = controller(p, whiteOff = 14, toMove = Player.WHITE, seed = 3)
         c.roll()
         while (c.uiState.phase == Phase.MOVING) { c.tapAnyLegalOrigin(); c.tapFirstDestination() }
@@ -73,6 +74,32 @@ class GameControllerTest {
         val before = c.uiState
         c.undo()
         assertEquals(before.phase, c.uiState.phase)
+    }
+
+    @Test fun `undo after staging pops the sub-move and restores a die`() {
+        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val c = controller(p)
+        c.roll()
+        assertEquals(Phase.MOVING, c.uiState.phase)
+        c.tap(BoardTarget.Point(13))
+        val remainingBeforeStage = c.uiState.remainingDice.size
+        c.tap(c.uiState.destinations.first()) // stage one sub-move
+        assertEquals(remainingBeforeStage - 1, c.uiState.remainingDice.size)
+        c.undo()
+        assertEquals(remainingBeforeStage, c.uiState.remainingDice.size) // die restored
+        assertEquals(Phase.MOVING, c.uiState.phase)
+    }
+
+    @Test fun `tap after game over is a no-op`() {
+        val p = IntArray(26); p[1] = 1; p[19] = -15
+        val c = controller(p, whiteOff = 14, toMove = Player.WHITE, seed = 3)
+        c.roll()
+        while (c.uiState.phase == Phase.MOVING) { c.tapAnyLegalOrigin(); c.tapFirstDestination() }
+        if (c.uiState.phase == Phase.COMMITTABLE) c.commit()
+        assertEquals(Phase.GAME_OVER, c.uiState.phase)
+        val before = c.uiState
+        c.tap(BoardTarget.Point(13))
+        assertEquals(before, c.uiState)
     }
 
     @Test fun `tap during NEED_ROLL is a no-op`() {
@@ -96,6 +123,10 @@ private fun GameController.tapAnyLegalOrigin() {
         tap(tgtCandidate); uiState.destinations.isNotEmpty()
     }
     if (uiState.destinations.isEmpty()) tap(BoardTarget.Bar)
+    // Fail fast rather than spin forever in a `while (phase == MOVING)` loop with no legal origin.
+    check(uiState.destinations.isNotEmpty() || uiState.phase != Phase.MOVING) {
+        "tapAnyLegalOrigin: no legal origin found while still MOVING"
+    }
 }
 private fun GameController.tapFirstDestination() {
     uiState.destinations.firstOrNull()?.let { tap(it) }

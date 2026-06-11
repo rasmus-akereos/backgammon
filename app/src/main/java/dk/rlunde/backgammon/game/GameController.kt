@@ -46,6 +46,7 @@ class GameController(
     }
 
     fun tap(target: BoardTarget) {
+        if (passing) return
         if (uiState.phase != Phase.MOVING && uiState.phase != Phase.COMMITTABLE) return
         val d = dice ?: return
         val partial = MoveGenerator.applyPartial(committed, staged)
@@ -55,7 +56,7 @@ class GameController(
         val sel = selectedOrigin
         if (sel != null) {
             val fromKey = originKey(sel)
-            val chosen = next[fromKey]?.firstOrNull { sameTarget(destinationTarget(it), target) }
+            val chosen = next[fromKey]?.firstOrNull { destinationTarget(it) == target }
             if (chosen != null) {
                 staged.add(chosen)
                 selectedOrigin = null
@@ -85,6 +86,7 @@ class GameController(
         staged.clear()
         selectedOrigin = null
         dice = null
+        passing = false
         uiState = compute()
     }
 
@@ -116,14 +118,15 @@ class GameController(
         if (sm.to == 0 || sm.to == 25) BoardTarget.BearOff(committed.toMove)
         else BoardTarget.Point(sm.to)
 
-    private fun sameTarget(a: BoardTarget, b: BoardTarget) = a == b
-
     private fun compute(): GameUiState {
         val partial = MoveGenerator.applyPartial(committed, staged)
         val d = dice
         val over = Scoring.isGameOver(committed)
         val phase = when {
             over -> Phase.GAME_OVER
+            // Auto-pass awaiting acknowledgePass(): keep it MOVING so roll()/commit() stay no-ops
+            // (a no-moves roll computes maxUsablePips == 0, which would otherwise read COMMITTABLE).
+            passing -> Phase.MOVING
             d == null -> Phase.NEED_ROLL
             else -> {
                 val rem = remainingDice(d)
