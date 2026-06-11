@@ -3,7 +3,7 @@ package dk.rlunde.backgammon.ui.board
 import androidx.compose.ui.graphics.Color
 
 object BoardColors {
-    val felt = Color(0xFF1F4E4A)
+    val felt = Color(0xFF14254E)   // royal navy deep blue
     val pointLight = Color(0xFFE8DCC0)
     val pointDark = Color(0xFF9C6B3F)
     val whiteChecker = Color(0xFFF4F1EA)

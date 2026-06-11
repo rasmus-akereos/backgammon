@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dk.rlunde.backgammon.core.BoardState
@@ -117,7 +118,14 @@ private fun TrackingPanel(
 
         // --- Controls (bottom) -----------------------------------------------------------
         when (state.phase) {
-            Phase.NEED_ROLL -> Button(onClick = onRoll, modifier = Modifier.fillMaxWidth()) { Text("Roll") }
+            Phase.NEED_ROLL -> Button(
+                onClick = onRoll,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFC62828),
+                    contentColor = Color.White,
+                ),
+            ) { Text("Roll") }
             Phase.MOVING -> Button(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
             Phase.COMMITTABLE -> {
                 Button(onClick = onCommit, modifier = Modifier.fillMaxWidth()) { Text("Commit") }
