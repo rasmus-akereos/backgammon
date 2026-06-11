@@ -26,8 +26,15 @@ object MoveGenerator {
         return flipped
     }
 
+    /** Fold sub-moves onto [state] WITHOUT flipping toMove — used to build mid-turn partial states. */
+    fun applyPartial(state: BoardState, subMoves: List<SubMove>): BoardState {
+        var current = state
+        for (sm in subMoves) current = applySubMove(current, sm)
+        return current
+    }
+
     /** Apply ONE sub-move for state.toMove. Allocates a fresh points array (copy-on-write). */
-    private fun applySubMove(state: BoardState, sm: SubMove): BoardState {
+    internal fun applySubMove(state: BoardState, sm: SubMove): BoardState {
         val mover = state.toMove
         val points = state.points.copyOf()
         val bar = state.bar.toMutableMap()
@@ -57,7 +64,7 @@ object MoveGenerator {
     // ---- single-die legality ---------------------------------------------------------------
 
     /** All legal single-die sub-moves for state.toMove using [die], honouring bar-first. */
-    private fun legalSubMovesFor(state: BoardState, die: Int): List<SubMove> {
+    internal fun legalSubMovesFor(state: BoardState, die: Int): List<SubMove> {
         val mover = state.toMove
 
         // Bar-first: if any checker is on the bar, the ONLY legal sub-move is an entry.
@@ -105,7 +112,7 @@ object MoveGenerator {
 
     // ---- Stage 1: enumerate every complete dice sequence ----------------------------------
 
-    private fun enumerateSequences(state: BoardState, remainingDice: List<Int>): List<List<SubMove>> {
+    internal fun enumerateSequences(state: BoardState, remainingDice: List<Int>): List<List<SubMove>> {
         if (remainingDice.isEmpty()) return listOf(emptyList())
         val results = mutableListOf<List<SubMove>>()
         var anyPlayable = false
