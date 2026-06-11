@@ -3,7 +3,7 @@ package dk.rlunde.backgammon.ui.board
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -19,8 +19,10 @@ import dk.rlunde.backgammon.game.GameUiState
 fun BoardCanvas(state: GameUiState, onTap: (BoardTarget) -> Unit, modifier: Modifier = Modifier) {
     Canvas(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(0.75f)
+            // Landscape board: fill the available height, derive a wide board width from it,
+            // centered by the parent. ~1.45:1 matches real backgammon-board proportions.
+            .fillMaxHeight()
+            .aspectRatio(1.45f, matchHeightConstraintsFirst = true)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val g = BoardGeometry(size.width.toFloat(), size.height.toFloat())
