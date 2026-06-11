@@ -116,6 +116,54 @@ class GameControllerTest {
         assertEquals(Phase.NEED_ROLL, c.uiState.phase)
         assertEquals(startingPosition().points.toList(), c.uiState.board.points.toList())
     }
+
+    @Test fun `applyMove applies a full move and flips the turn`() {
+        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val c = GameController(
+            initial = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+                mapOf(Player.WHITE to 0, Player.BLACK to 0), Player.WHITE),
+            roller = SeededDiceRoller(1), aiSide = Player.WHITE)
+        c.roll()
+        val dice = c.uiState.dice!!
+        val legal = MoveGenerator.legalMoves(c.uiState.board, dice)
+        c.applyMove(legal.first())
+        assertEquals(Player.BLACK, c.uiState.toMove)
+        assertEquals(Phase.NEED_ROLL, c.uiState.phase)
+    }
+
+    @Test fun `applyMove that bears off the last checker ends the game`() {
+        val p = IntArray(26); p[1] = 1; p[19] = -15
+        val c = GameController(
+            initial = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+                mapOf(Player.WHITE to 14, Player.BLACK to 0), Player.WHITE),
+            roller = SeededDiceRoller(3), aiSide = Player.WHITE)
+        c.roll()
+        val dice = c.uiState.dice!!
+        val legal = MoveGenerator.legalMoves(c.uiState.board, dice)
+        c.applyMove(legal.first())
+        assertEquals(Phase.GAME_OVER, c.uiState.phase)
+        assertEquals(Player.WHITE, c.uiState.winner)
+    }
+
+    @Test fun `human methods are no-ops on the AI's turn but roll still works`() {
+        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val c = GameController(
+            initial = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+                mapOf(Player.WHITE to 0, Player.BLACK to 0), Player.WHITE),
+            roller = SeededDiceRoller(1), aiSide = Player.WHITE)
+        val before = c.uiState
+        c.tap(BoardTarget.Point(13))
+        assertEquals(before, c.uiState)
+        c.roll()
+        assertTrue(c.uiState.phase != Phase.NEED_ROLL)
+    }
+
+    @Test fun `hot-seat (aiSide null) keeps human methods active for both colours`() {
+        val c = GameController(roller = SeededDiceRoller(1)) // aiSide defaults to null
+        c.roll()
+        c.tap(BoardTarget.Point(13))
+        assertTrue(c.uiState.selectedOrigin != null || c.uiState.destinations.isEmpty())
+    }
 }
 
 private fun GameController.tapAnyLegalOrigin() {

@@ -11,6 +11,7 @@ import dk.rlunde.backgammon.ui.board.BoardTarget
 class GameController(
     private val initial: BoardState = startingPosition(),
     private val roller: DiceRoller = RandomDiceRoller(),
+    private val aiSide: Player? = null,
 ) {
     private var committed: BoardState = initial
     private var dice: Dice? = null
@@ -46,6 +47,7 @@ class GameController(
     }
 
     fun tap(target: BoardTarget) {
+        if (committed.toMove == aiSide) return
         if (passing) return
         if (uiState.phase != Phase.MOVING && uiState.phase != Phase.COMMITTABLE) return
         val d = dice ?: return
@@ -74,6 +76,7 @@ class GameController(
     }
 
     fun undo() {
+        if (committed.toMove == aiSide) return
         if (staged.isEmpty()) return
         staged.removeAt(staged.lastIndex)
         selectedOrigin = null
@@ -81,8 +84,19 @@ class GameController(
     }
 
     fun commit() {
+        if (committed.toMove == aiSide) return
         if (uiState.phase != Phase.COMMITTABLE) return
         committed = MoveGenerator.apply(committed, Move(staged.toList()))
+        staged.clear()
+        selectedOrigin = null
+        dice = null
+        passing = false
+        uiState = compute()
+    }
+
+    /** Apply a complete AI-chosen move (no tap-staging). Pre: move ∈ legalMoves(committed, dice). */
+    fun applyMove(move: Move) {
+        committed = MoveGenerator.apply(committed, move)
         staged.clear()
         selectedOrigin = null
         dice = null
