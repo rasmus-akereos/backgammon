@@ -58,8 +58,10 @@ internal object Features {
 
     /**
      * Sum over [p]'s blots of (max single-shooter hit probability) × cost. When [costWeighted] is
-     * false (Beginner), cost is 1 (probability-only). A shooter is an opponent checker — or the
-     * opponent's bar — that lies "behind" the blot in the opponent's direction of travel.
+     * false (Beginner), cost is 1 (probability-only). Blocking-aware: a combination (indirect) shot is
+     * counted only if at least one ordering has an OPEN intermediate landing point; direct shots
+     * (one die == distance) are never blocked. The opponent's bar shooter keeps the open-path
+     * approximation (entry mechanics differ; rare). Unblocked positions reproduce the open-path counts.
      */
     fun blotPenalty(s: BoardState, p: Player, costWeighted: Boolean): Double {
         val o = p.opponent
@@ -67,16 +69,59 @@ internal object Features {
         for (i in 1..24) {
             if (s.count(p, i) != 1) continue // not a blot of p's
             var bestProb = 0.0
-            val shooters = ArrayList<Int>(15)
-            for (j in 1..24) if (s.count(o, j) > 0) shooters.add(j)
-            if (s.barCount(o) > 0) shooters.add(if (o == Player.WHITE) 25 else 0)
-            for (j in shooters) {
-                val d = if (o == Player.WHITE) j - i else i - j // o moves toward its bear-off
+            for (j in 1..24) {
+                if (s.count(o, j) == 0) continue
+                bestProb = maxOf(bestProb, blockedHitProb(s, p, o, shooter = j, target = i))
+            }
+            if (s.barCount(o) > 0) {
+                val barFrom = if (o == Player.WHITE) 25 else 0
+                val d = if (o == Player.WHITE) barFrom - i else i - barFrom
                 if (d in 1..12) bestProb = maxOf(bestProb, ShotTable.hitProbability(d))
             }
             penalty += if (costWeighted) bestProb * hitCost(p, i) else bestProb
         }
         return penalty
+    }
+
+    /** One step of [o] toward its bear-off (WHITE high->low, BLACK low->high). */
+    private fun step(o: Player, point: Int, k: Int): Int = if (o == Player.WHITE) point - k else point + k
+
+    /** True if [o] may LAND on [point] (on board and not blocked by one of [p]'s made points, >=2). */
+    private fun landable(s: BoardState, p: Player, point: Int): Boolean =
+        point in 1..24 && s.count(p, point) < 2
+
+    /**
+     * Fraction of the 36 ordered rolls by which shooter [o] at [shooter] hits [p]'s blot at [target],
+     * EXCLUDING combination shots whose intermediate landing point is blocked. Direct shots (one die ==
+     * distance) are never blocked; doubles may hit via 1..4 equal hops with all intermediates landable.
+     * Restricted to distances 1..12 (the open-path table's domain; far doubles ignored — a v1 approximation).
+     */
+    internal fun blockedHitProb(s: BoardState, p: Player, o: Player, shooter: Int, target: Int): Double {
+        val d = if (o == Player.WHITE) shooter - target else target - shooter
+        if (d !in 1..12) return 0.0
+        var hits = 0
+        for (d1 in 1..6) for (d2 in 1..6) {
+            if (canHit(s, p, o, shooter, d, d1, d2)) hits++
+        }
+        return hits / 36.0
+    }
+
+    private fun canHit(s: BoardState, p: Player, o: Player, shooter: Int, d: Int, d1: Int, d2: Int): Boolean {
+        // Direct: a single die equals the distance (one hop, no intermediate point to block).
+        if (d <= 6 && (d1 == d || d2 == d)) return true
+        if (d1 == d2) {
+            // Doubles value k: reachable via n hops if d == n*k for n in 2..4; all n-1 intermediates landable.
+            val k = d1
+            if (d % k != 0) return false
+            val n = d / k
+            if (n !in 2..4) return false
+            var pt = shooter
+            for (hop in 1 until n) { pt = step(o, pt, k); if (!landable(s, p, pt)) return false }
+            return true
+        }
+        // Non-double combination: both dice, either order; the first hop must land on an open point.
+        if (d1 + d2 != d) return false
+        return landable(s, p, step(o, shooter, d1)) || landable(s, p, step(o, shooter, d2))
     }
 
     /** True when no hit is possible: every WHITE checker is at a lower point than every BLACK one. */
