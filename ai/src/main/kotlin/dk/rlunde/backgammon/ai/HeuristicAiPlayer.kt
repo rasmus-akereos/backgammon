@@ -7,9 +7,10 @@ import dk.rlunde.backgammon.core.MoveGenerator
 import kotlin.random.Random
 
 /**
- * The Phase-2 AI. With probability [Difficulty.noise] it plays a *plausible* weak move (a uniform
- * pick among the top-3 moves by the simplified eval — human-fallible, not absurd); otherwise it
- * plays the 1-ply best. [rng] is injected for deterministic tests.
+ * The heuristic AI. With probability [Difficulty.noise] it plays a *plausible* weak move (a uniform
+ * pick among the top-3 moves by the simplified eval — human-fallible, not absurd); otherwise it plays
+ * the best move from a depth-parameterised expectimax search (depth/pruning per [Difficulty]:
+ * Beginner/Intermediate are 1-ply, Advanced 2-ply, Expert 3-ply). [rng] is injected for deterministic tests.
  */
 class HeuristicAiPlayer(
     private val difficulty: Difficulty,
@@ -21,7 +22,7 @@ class HeuristicAiPlayer(
         return if (difficulty.noise > 0.0 && rng.nextDouble() < difficulty.noise)
             sampleWeak(state, dice, legal)
         else
-            MoveSearch.bestMove(state, dice, legal, difficulty.weights)
+            Expectimax.bestMove(state, dice, legal, difficulty.weights, difficulty.searchDepth, difficulty.topK)
     }
 
     private fun sampleWeak(state: BoardState, dice: Dice, legal: List<Move>): Move {

@@ -11,7 +11,7 @@ class HeuristicAiPlayerTest {
         val ai = HeuristicAiPlayer(Difficulty.INTERMEDIATE, Random(1))
         val s = startingPosition(); val dice = Dice(3, 1)
         val legal = MoveGenerator.legalMoves(s, dice)
-        val best = MoveSearch.bestMove(s, dice, legal, Weights.FULL)
+        val best = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 0, topK = Int.MAX_VALUE)
         repeat(20) { assertEquals(best, ai.chooseMove(s, dice, legal)) }
     }
 
