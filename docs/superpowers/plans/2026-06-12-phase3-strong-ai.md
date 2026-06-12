@@ -312,9 +312,10 @@ git commit -m "feat(ai): add Expectimax negamax search (depth-0 == greedy)"
             "must play the move that wins the game")
     }
 
-    @Test fun `a position one move from losing is valued far below zero`() {
-        // BLACK to move, BLACK one checker from bearing off & winning: from WHITE's root the value is a big loss.
-        val p = IntArray(26); p[23] = 1
+    @Test fun `a near-certain win is valued near plus WIN_CONSTANT`() {
+        // BLACK to move, one checker (on 23) from bearing off & winning; WHITE's 15 sit deep on point 1.
+        // (Use a VALID 15-each board: p[23] must be -1 (a BLACK checker), and WHITE needs its 15.)
+        val p = IntArray(26); p[23] = -1; p[1] = 15
         val blackAboutToWin = BoardState(p,
             mapOf(Player.WHITE to 0, Player.BLACK to 0),
             mapOf(Player.WHITE to 0, Player.BLACK to 14), Player.BLACK)
@@ -391,13 +392,16 @@ git commit -m "test(ai): verify expectimax chance weighting vs independent 36-ro
 - [ ] **Step 1: Write the failing tests** (append)
 
 ```kotlin
-    @Test fun `top-K pruning is leaf-exact at depth 1`() {
+    // NOTE: root-level pruning at depth>=1 is NOT exact (the root move's value is a full chance node,
+    // not the static key). The real invariant is at depth 0, where the ranking key == the evaluation,
+    // so the static-best move is always kept regardless of topK.
+    @Test fun `depth-0 best move is invariant to topK (static-best is never pruned)`() {
         val p = IntArray(26); p[6] = 2; p[8] = 1; p[13] = 3; p[19] = -2; p[17] = -1
         val s = board(p); val dice = Dice(6, 3)
         val legal = MoveGenerator.legalMoves(s, dice)
-        val pruned = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 1, topK = 3)
-        val full = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 1, topK = Int.MAX_VALUE)
-        assertEquals(full, pruned, "pruning must not change the chosen move when the key is the depth-0 value")
+        val k1 = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 0, topK = 1)
+        val kAll = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 0, topK = Int.MAX_VALUE)
+        assertEquals(kAll, k1, "depth-0 pruning must never drop the static-best move")
     }
 
     @Test fun `tiny budget still returns a legal move and degrades to static argmax`() {
