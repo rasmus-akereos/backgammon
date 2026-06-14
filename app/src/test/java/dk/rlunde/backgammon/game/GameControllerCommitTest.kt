@@ -25,6 +25,6 @@ class GameControllerCommitTest {
         assertNotNull(lc)
         assertEquals(pre, lc.preBoard)
         assertEquals(dice, lc.dice)
-        assertEquals(MoveGenerator.apply(pre, move), MoveGenerator.apply(pre, lc.move))
+        assertEquals(move, lc.move)
     }
 }

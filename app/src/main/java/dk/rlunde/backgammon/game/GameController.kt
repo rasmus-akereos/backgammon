@@ -141,7 +141,8 @@ class GameController(
 
     /** Test-only: stage a complete legal move without tap simulation. */
     internal fun stageForTest(move: Move) {
-        staged.clear(); staged.addAll(move.subMoves)
+        staged.clear()
+        staged.addAll(move.subMoves)
         uiState = compute()
     }
 
