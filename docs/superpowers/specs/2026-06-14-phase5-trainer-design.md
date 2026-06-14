@@ -265,17 +265,21 @@ The app layering is `GameViewModel` (Android `ViewModel`; owns coroutines +
 - **Staleness via an epoch token:** each request carries a monotonically
   increasing turn epoch; on completion the result is published only if the
   epoch is still current. The prior `analysisJob` is **cancelled** on the next
-  human commit, on `undo`, on reset, and on `onNewGame()` (where `aiJob` is
-  already cancelled). The latest `MoveAnalysis?` is held as a `GameViewModel`
-  field and merged into the emitted state in `publish()` via
-  `controller.uiState.copy(...)` (the same pattern used for `aiThinking`),
-  not computed inside `GameController`.
+  human commit, on reset, and on `onNewGame()` (where `aiJob` is already
+  cancelled). **Undo does not cancel the analysis job** — undo only retracts
+  staged sub-moves of the current (not-yet-committed) turn; the displayed
+  marker belongs to the previous committed move and must not be disturbed.
+  The latest `MoveAnalysis?` is held as a `GameViewModel` field and merged
+  into the emitted state in `publish()` via `controller.uiState.copy(...)`
+  (the same pattern used for `aiThinking`), not computed inside
+  `GameController`.
 
 ### 4.3 Per-move marker
 A small colored badge in the existing turn/dice indicator area (no new board
 real estate), colored by `band` (green→red). `forced` shows a neutral
 "Forced" chip rather than "Best". Tapping opens the detail sheet. The badge
-persists until the next human move replaces it; cleared on undo/reset.
+persists until the next human commit replaces it — including across undo
+(which only affects staged sub-moves, not the committed marker).
 
 ### 4.4 Detail sheet (bottom sheet)
 Same content from the marker tap or the on-demand button:
@@ -309,8 +313,9 @@ Same content from the marker tap or the on-demand button:
   win%, qualitative label).
 - **Race / no-contact:** breakdown contains only PIP/OFF.
 - **Tap-order vs canonical order:** matched by resulting board (§3.6).
-- **Staleness (undo/reset/new game mid-analysis):** epoch token + job cancel
-  (§4.2) — no marker bound to a vanished position.
+- **Staleness (reset/new game mid-analysis):** epoch token + job cancel
+  (§4.2) — no marker bound to a vanished position. Undo does not cancel the
+  analysis job (§4.2) and the marker persists across undo (§4.3).
 
 ## 6. Testing
 
@@ -350,8 +355,9 @@ design.
 - `GameViewModel` (with an **injected `TestDispatcher`/scope** so the race is
   deterministic): analysis fires **only** on human moves with training on;
   skips AI moves and passes; **supersede** — launch analysis for move A,
-  advance to move B, assert A's result is dropped and B's stored; **undo/reset
-  mid-analysis** yields no stale marker.
+  advance to move B, assert A's result is dropped and B's stored; **undo
+  after a completed analysis** leaves the marker intact (§4.3); **reset/new
+  game** clears the marker.
 - Hit-notation: a hitting play renders with `*`.
 - No instrumented UI tests (consistent with the existing suite).
 

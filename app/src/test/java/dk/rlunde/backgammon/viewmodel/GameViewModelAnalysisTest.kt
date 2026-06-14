@@ -133,39 +133,39 @@ class GameViewModelAnalysisTest {
     }
 
     // -----------------------------------------------------------------------
-    // (d) Undo mid-analysis discards the stale result
+    // (d) Undo does not clear a completed analysis marker (§4.3)
     //
-    // Sequence: commit move A (analysis job queued at epoch=1, not yet run) →
-    //   onUndo() (cancelAnalysis: job cancelled, epoch bumped to 2) →
-    //   advanceUntilIdle() (any residual work runs; epoch guard drops stale result) →
-    //   assert analysis == null.
+    // Spec §4.3: the marker persists until the *next commit* replaces it;
+    // undo only retracts staged sub-moves of the current (not-yet-committed)
+    // turn and must not disturb the marker from the previous committed move.
     //
-    // Note: onUndo() after a commit only clears staged sub-moves in the controller
-    // (no staged moves remain post-commit, so the board is unchanged), but the VM's
-    // cancelAnalysis() is still called unconditionally, bumping the epoch and
-    // cancelling the in-flight job before it has had a chance to execute on the
-    // test dispatcher.
+    // Sequence: commit move A → advanceUntilIdle() (analysis completes, marker set) →
+    //   assert analysis != null (pre-condition) →
+    //   onUndo() (no cancelAnalysis call) →
+    //   assert analysis still != null (marker persists across undo).
     // -----------------------------------------------------------------------
 
     @Test
-    fun `undo mid-analysis discards stale result`() = runTest {
+    fun `undo does not clear a completed analysis marker`() = runTest {
         val vm = buildVm(this, training = true)
 
-        // Commit move A — analysis job launched at epoch=1 on the test dispatcher
-        // (not yet run because we have not advanced the scheduler).
+        // Commit move A and let the analysis job complete.
         val committed = stageAndCommit(vm, Dice(3, 1))
         check(committed) { "No legal moves available for test setup" }
 
-        // Cancel before any coroutine has had a chance to run.
-        // cancelAnalysis() inside onUndo() bumps analysisEpoch to 2 and cancels the job.
-        vm.onUndo()
-
-        // Drain all queued work (AI jobs, any lingering analysis fragments).
         advanceUntilIdle()
 
-        assertNull(
+        assertNotNull(
             vm.uiState.value.analysis,
-            "Analysis should be null after undo cancels the in-flight job",
+            "Pre-condition: analysis should be set after human commit with training on",
+        )
+
+        // Undo only retracts staged sub-moves; the completed analysis marker must survive.
+        vm.onUndo()
+
+        assertNotNull(
+            vm.uiState.value.analysis,
+            "Analysis should remain non-null after undo — marker persists until next commit (§4.3)",
         )
     }
 

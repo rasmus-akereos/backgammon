@@ -93,7 +93,7 @@ class GameViewModel internal constructor(
 
     fun onRoll() { val e = controller.roll(); publish(e); maybeRunAi() }
     fun onTap(target: BoardTarget) { controller.tap(target); publish() }
-    fun onUndo() { controller.undo(); cancelAnalysis(); publish() }
+    fun onUndo() { controller.undo(); publish() }
     fun onCommit() { controller.commit(); analyzeLastHumanMove(); publish(); maybeRunAi() }
     fun onAcknowledgePass() { controller.acknowledgePass(); publish(); maybeRunAi() }
 

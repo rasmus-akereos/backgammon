@@ -85,13 +85,16 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
+    // True when the move shown IS the best — on-demand hint, or player happened to play best.
+    val isBestPlay = analysis.best.move == analysis.played.move
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
-            // Header: band name + colour
+            // Header: band name + colour (always shown)
             val (bandLabel, bandColor) = bandDisplay(analysis)
             Text(
                 text = bandLabel,
@@ -101,67 +104,71 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
 
             Spacer(Modifier.height(8.dp))
 
-            // Win% / eval or qualitative label
-            val winProbDrop = analysis.winProbDrop
-            if (winProbDrop != null) {
+            if (isBestPlay) {
+                // Clean "best play" view — no zero-valued noise
                 Text(
-                    text = "−%.1f eval  ~%.0f%% win drop".format(analysis.evalLoss, winProbDrop * 100),
+                    text = "Best play: ${notation(analysis.best.move)}  (2-ply)",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                val qualitative = if (analysis.terminal) "Game-ending move" else "Forced win/loss line"
-                Text(text = qualitative, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // Rank info
-            if (!analysis.forced) {
-                val rankText = if (analysis.tiedForBest)
-                    "Tied for best"
-                else
-                    "Your move ranked ${analysis.playedRank} of ${analysis.totalCandidates}"
-                Text(text = rankText, style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-            }
-
-            // Best move notation
-            Text(
-                text = "Best: ${notation(analysis.best.move)}  (2-ply)",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-
-            // Played move notation (only when different from best)
-            val bestBoard = analysis.best.move
-            val playedBoard = analysis.played.move
-            if (bestBoard != playedBoard) {
-                Text(
-                    text = "Yours: ${notation(playedBoard)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-
-            // "Why" feature deltas section
-            if (analysis.featureDeltas.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
-                Text("Why", style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(4.dp))
-                analysis.featureDeltas.take(3).forEach { d ->
+                // Full post-move comparison view
+                val winProbDrop = analysis.winProbDrop
+                if (winProbDrop != null) {
                     Text(
-                        text = "${featureLabel(d.feature)}  ${"%+.1f".format(d.delta)}",
+                        text = "−%.1f eval  ~%.0f%% win drop".format(analysis.evalLoss, winProbDrop * 100),
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                } else {
+                    val qualitative = if (analysis.terminal) "Game-ending move" else "Forced win/loss line"
+                    Text(text = qualitative, style = MaterialTheme.typography.bodyMedium)
                 }
-            }
 
-            // Footnote
-            if (winProbDrop != null) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+
+                // Rank info
+                if (!analysis.forced) {
+                    val rankText = if (analysis.tiedForBest)
+                        "Tied for best"
+                    else
+                        "Your move ranked ${analysis.playedRank} of ${analysis.totalCandidates}"
+                    Text(text = rankText, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                // Best move notation
                 Text(
-                    text = "* win% is approximate (uncalibrated, single-win only)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "Best: ${notation(analysis.best.move)}  (2-ply)",
+                    style = MaterialTheme.typography.bodyMedium,
                 )
+
+                // Played move notation (always different from best in this branch)
+                Text(
+                    text = "Yours: ${notation(analysis.played.move)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                // "Why" feature deltas section
+                if (analysis.featureDeltas.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Why", style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(4.dp))
+                    analysis.featureDeltas.take(3).forEach { d ->
+                        Text(
+                            text = "${featureLabel(d.feature)}  ${"%+.1f".format(d.delta)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+
+                // Footnote
+                if (winProbDrop != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "* win% is approximate (uncalibrated, single-win only)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))
