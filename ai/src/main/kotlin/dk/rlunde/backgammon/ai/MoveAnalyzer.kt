@@ -73,6 +73,13 @@ object MoveAnalyzer {
         )
     }
 
+    /** On-demand pre-move hint: analyse the current best play against itself (band BEST, factors only). */
+    fun analyzeBest(state: BoardState, dice: Dice, legal: List<Move>): MoveAnalysis {
+        require(legal.isNotEmpty()) { "analyzeBest called with no legal moves" }
+        val best = Expectimax.rankMoves(state, dice, legal, REFERENCE_WEIGHTS, ANALYSIS_DEPTH, NodeBudget(Int.MAX_VALUE)).first()
+        return analyze(state, dice, best.move, legal)
+    }
+
     private fun band(playedRank: Int, evalLoss: Double): Band = when {
         playedRank == 1 -> Band.BEST
         evalLoss <= GOOD_MAX -> Band.GOOD

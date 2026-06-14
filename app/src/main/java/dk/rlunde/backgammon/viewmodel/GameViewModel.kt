@@ -133,6 +133,22 @@ class GameViewModel internal constructor(
         }
     }
 
+    fun onAnalyse() {
+        if (controller.uiState.toMove == aiSide) return
+        val board = controller.uiState.board
+        val dice = controller.uiState.dice ?: return
+        val legal = MoveGenerator.legalMoves(board, dice)
+        if (legal.isEmpty()) return
+        analysisJob?.cancel()
+        analysis = null
+        val epoch = ++analysisEpoch
+        analysisJob = scope.launch {
+            val result = withContext(analysisDispatcher) { MoveAnalyzer.analyzeBest(board, dice, legal) }
+            if (epoch == analysisEpoch) { analysis = result; publish() }
+        }
+        publish()
+    }
+
     private fun cancelAnalysis() {
         analysisJob?.cancel()
         analysisJob = null
