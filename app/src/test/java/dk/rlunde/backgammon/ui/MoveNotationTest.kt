@@ -20,4 +20,10 @@ class MoveNotationTest {
     @Test fun `bar entry uses bar`() {
         assertEquals("bar/20", notation(Move(listOf(SubMove(25, 20, 5, false)))))
     }
+    @Test fun `BLACK bar entry uses bar`() {
+        assertEquals("bar/5", notation(Move(listOf(SubMove(0, 5, 5, false)))))
+    }
+    @Test fun `BLACK bear-off uses off`() {
+        assertEquals("1/off", notation(Move(listOf(SubMove(1, 25, 1, false)))))
+    }
 }

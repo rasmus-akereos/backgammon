@@ -105,7 +105,7 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
             val winProbDrop = analysis.winProbDrop
             if (winProbDrop != null) {
                 Text(
-                    text = "−%.1f eval  ~%+.0f%% win".format(analysis.evalLoss, winProbDrop * 100),
+                    text = "−%.1f eval  ~%.0f%% win drop".format(analysis.evalLoss, winProbDrop * 100),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {

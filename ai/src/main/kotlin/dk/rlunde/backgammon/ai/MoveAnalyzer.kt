@@ -25,9 +25,23 @@ object MoveAnalyzer {
 
     fun analyze(state: BoardState, dice: Dice, playedMove: Move, legal: List<Move>): MoveAnalysis {
         require(legal.isNotEmpty()) { "analyze called with no legal moves" }
-        val budget = NodeBudget(Int.MAX_VALUE)
-        val ranking = Expectimax.rankMoves(state, dice, legal, REFERENCE_WEIGHTS, ANALYSIS_DEPTH, budget)
+        val ranking = Expectimax.rankMoves(state, dice, legal, REFERENCE_WEIGHTS, ANALYSIS_DEPTH, NodeBudget(Int.MAX_VALUE))
+        return analyzeRanked(state, playedMove, legal, ranking)
+    }
 
+    /** On-demand pre-move hint: analyse the current best play against itself (band BEST, factors only). */
+    fun analyzeBest(state: BoardState, dice: Dice, legal: List<Move>): MoveAnalysis {
+        require(legal.isNotEmpty()) { "analyzeBest called with no legal moves" }
+        val ranking = Expectimax.rankMoves(state, dice, legal, REFERENCE_WEIGHTS, ANALYSIS_DEPTH, NodeBudget(Int.MAX_VALUE))
+        return analyzeRanked(state, ranking.first().move, legal, ranking)
+    }
+
+    private fun analyzeRanked(
+        state: BoardState,
+        playedMove: Move,
+        legal: List<Move>,
+        ranking: List<AnalyzedPlay>,
+    ): MoveAnalysis {
         val playedBoard = MoveGenerator.apply(state, playedMove)
         val playedIdx = ranking.indexOfFirst { MoveGenerator.apply(state, it.move) == playedBoard }
         require(playedIdx >= 0) { "playedMove is not among legal moves" }
@@ -71,13 +85,6 @@ object MoveAnalyzer {
             featureDeltas = featureDeltas,
             forced = forced,
         )
-    }
-
-    /** On-demand pre-move hint: analyse the current best play against itself (band BEST, factors only). */
-    fun analyzeBest(state: BoardState, dice: Dice, legal: List<Move>): MoveAnalysis {
-        require(legal.isNotEmpty()) { "analyzeBest called with no legal moves" }
-        val best = Expectimax.rankMoves(state, dice, legal, REFERENCE_WEIGHTS, ANALYSIS_DEPTH, NodeBudget(Int.MAX_VALUE)).first()
-        return analyze(state, dice, best.move, legal)
     }
 
     private fun band(playedRank: Int, evalLoss: Double): Band = when {
