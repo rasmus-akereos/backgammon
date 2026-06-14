@@ -43,6 +43,7 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
                 if (opponent == Opponent.COMPUTER) {
                     ChoiceRow("Difficulty", listOf(
                         "Beginner" to Difficulty.BEGINNER, "Intermediate" to Difficulty.INTERMEDIATE,
+                        "Advanced" to Difficulty.ADVANCED, "Expert" to Difficulty.EXPERT,
                     ), difficulty) { difficulty = it }
                 }
 
@@ -68,7 +69,13 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
 private fun <T> ChoiceRow(label: String, options: List<Pair<String, T>>, selected: T, onSelect: (T) -> Unit) {
     Column(Modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Chips stacked vertically: keeps each group narrow so the three groups sit side by side in
+        // landscape, and scales to 4 difficulty options without horizontal clipping.
+        Column(
+            Modifier.padding(top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             options.forEach { (text, value) ->
                 FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(text) })
             }
