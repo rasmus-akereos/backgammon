@@ -13,7 +13,7 @@ data class FeatureDelta(val feature: Feature, val best: Double, val played: Doub
     val delta: Double get() = best - played
 }
 
-/** Full analysis of one human play. winProbDrop/featureDeltas may be absent for terminal plays (§3.7). */
+/** Full analysis of one human play. winProbDrop is null and featureDeltas empty for terminal or forced-win/loss plays (§3.7). */
 data class MoveAnalysis(
     val band: Band,
     val playedRank: Int,

@@ -34,6 +34,7 @@ class MoveAnalyzerTest {
         assertTrue(a.evalLoss > 0.0)
         assertTrue(a.playedRank > 1)
         assertTrue(a.band != Band.BEST)
+        assertTrue(a.featureDeltas.isNotEmpty())
         val mags = a.featureDeltas.map { kotlin.math.abs(it.delta) }
         assertEquals(mags.sortedDescending(), mags)
     }

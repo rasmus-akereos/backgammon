@@ -5,6 +5,7 @@ import dk.rlunde.backgammon.core.Dice
 import dk.rlunde.backgammon.core.Move
 import dk.rlunde.backgammon.core.MoveGenerator
 import dk.rlunde.backgammon.core.Scoring
+import kotlin.math.abs
 
 /**
  * Grades [playedMove] against all [legal] plays from [state] (spec Phase 5). Pure, deterministic,
@@ -41,21 +42,21 @@ object MoveAnalyzer {
         val forced = legal.size == 1
 
         val terminal = Scoring.isGameOver(playedBoard)
-        val extreme = kotlin.math.abs(best.score) >= WIN_BAND || kotlin.math.abs(played.score) >= WIN_BAND
+        val extreme = abs(best.score) >= WIN_BAND || abs(played.score) >= WIN_BAND
 
-        val featureDeltas: List<FeatureDelta> = if (terminal) emptyList() else {
+        val suppressed = terminal || extreme
+        val featureDeltas: List<FeatureDelta> = if (suppressed) emptyList() else {
             val human = state.toMove
             val bestTerms = Evaluator.breakdown(MoveGenerator.apply(state, best.move), human, REFERENCE_WEIGHTS)
                 .associate { it.feature to it.value }
             val playedTerms = Evaluator.breakdown(playedBoard, human, REFERENCE_WEIGHTS)
                 .associate { it.feature to it.value }
-            (bestTerms.keys + playedTerms.keys)
+            (bestTerms.keys union playedTerms.keys)
                 .map { f -> FeatureDelta(f, bestTerms[f] ?: 0.0, playedTerms[f] ?: 0.0) }
-                .sortedByDescending { kotlin.math.abs(it.delta) }
+                .sortedByDescending { abs(it.delta) }
         }
-
-        val winProbDrop: Double? = if (terminal || extreme) null
-        else WinProbability.fromEquity(best.score) - WinProbability.fromEquity(played.score)
+        val winProbDrop: Double? = if (suppressed) null
+            else WinProbability.fromEquity(best.score) - WinProbability.fromEquity(played.score)
 
         return MoveAnalysis(
             band = band(playedRank, evalLoss),
