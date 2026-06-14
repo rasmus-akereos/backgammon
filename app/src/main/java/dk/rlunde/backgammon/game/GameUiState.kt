@@ -2,11 +2,19 @@ package dk.rlunde.backgammon.game
 
 import dk.rlunde.backgammon.core.BoardState
 import dk.rlunde.backgammon.core.Dice
+import dk.rlunde.backgammon.core.Move
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.core.SubMove
 import dk.rlunde.backgammon.ui.board.BoardTarget
 
 enum class Phase { NEED_ROLL, MOVING, COMMITTABLE, GAME_OVER }
+
+/** The turn a human just committed, with its pre-move context, for post-move analysis. */
+data class CommittedTurn(
+    val preBoard: BoardState,
+    val dice: Dice,
+    val move: Move,
+)
 
 /** One-shot UI events (consumed once). */
 sealed interface UiEvent {

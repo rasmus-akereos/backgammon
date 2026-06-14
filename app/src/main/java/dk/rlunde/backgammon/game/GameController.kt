@@ -19,6 +19,7 @@ class GameController(
     private var selectedOrigin: BoardTarget? = null
     private var passing = false
 
+    var lastCommitted: CommittedTurn? = null; private set
     var uiState: GameUiState = compute(); private set
 
     fun roll(): List<UiEvent> {
@@ -86,7 +87,11 @@ class GameController(
     fun commit() {
         if (committed.toMove == aiSide) return
         if (uiState.phase != Phase.COMMITTABLE) return
-        committed = MoveGenerator.apply(committed, Move(staged.toList()))
+        val pre = committed
+        val d = dice!!
+        val move = Move(staged.toList())
+        lastCommitted = CommittedTurn(pre, d, move)
+        committed = MoveGenerator.apply(committed, move)
         staged.clear()
         selectedOrigin = null
         dice = null
@@ -96,6 +101,7 @@ class GameController(
 
     /** Apply a complete AI-chosen move (no tap-staging). Pre: move ∈ legalMoves(committed, dice). */
     fun applyMove(move: Move) {
+        lastCommitted = null
         committed = MoveGenerator.apply(committed, move)
         staged.clear()
         selectedOrigin = null
@@ -105,6 +111,7 @@ class GameController(
     }
 
     fun newGame() {
+        lastCommitted = null
         committed = initial
         dice = null
         staged.clear()
@@ -131,6 +138,12 @@ class GameController(
     private fun destinationTarget(sm: SubMove): BoardTarget =
         if (sm.to == 0 || sm.to == 25) BoardTarget.BearOff(committed.toMove)
         else BoardTarget.Point(sm.to)
+
+    /** Test-only: stage a complete legal move without tap simulation. */
+    internal fun stageForTest(move: Move) {
+        staged.clear(); staged.addAll(move.subMoves)
+        uiState = compute()
+    }
 
     private fun compute(): GameUiState {
         val partial = MoveGenerator.applyPartial(committed, staged)
