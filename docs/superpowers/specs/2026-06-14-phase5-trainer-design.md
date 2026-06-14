@@ -149,7 +149,8 @@ UI must not present it with units that imply cross-tool equity.
 ```kotlin
 fun breakdown(state: BoardState, perspective: Player, weights: Weights): List<FeatureContribution>
 data class FeatureContribution(val feature: Feature, val value: Double)  // weight already applied
-enum class Feature { PIP, OFF, BAR, BACK_CHECKER, HOME_POINT, KEY_POINT, PRIME, ANCHOR, ADVANCED_ANCHOR, BLOT }
+// In Weights field-declaration order (the 1:1 binding rule below depends on it):
+enum class Feature { PIP, OFF, BLOT, HOME_POINT, KEY_POINT, PRIME, ANCHOR, ADVANCED_ANCHOR, BAR, BACK_CHECKER }
 ```
 
 - A **shared private term-builder** returns `List<FeatureContribution>` **one
