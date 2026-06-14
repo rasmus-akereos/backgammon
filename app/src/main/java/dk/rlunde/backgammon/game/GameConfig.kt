@@ -10,4 +10,5 @@ data class GameConfig(
     val difficulty: Difficulty = Difficulty.INTERMEDIATE,
     val humanColor: Player? = Player.WHITE,
     val opponent: Opponent = Opponent.COMPUTER,
+    val training: Boolean = false,
 )

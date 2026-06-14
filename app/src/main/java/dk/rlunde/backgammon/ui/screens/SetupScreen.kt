@@ -19,6 +19,7 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
     var difficulty by remember { mutableStateOf(Difficulty.INTERMEDIATE) }
     var colorChoice by remember { mutableStateOf<Player?>(Player.WHITE) }
     var opponent by remember { mutableStateOf(Opponent.COMPUTER) }
+    var training by remember { mutableStateOf(false) }
 
     Surface(Modifier.fillMaxSize()) {
         // Landscape: title on top, the choice groups side by side, Start clearly below — all visible
@@ -45,6 +46,9 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
                         "Beginner" to Difficulty.BEGINNER, "Intermediate" to Difficulty.INTERMEDIATE,
                         "Advanced" to Difficulty.ADVANCED, "Expert" to Difficulty.EXPERT,
                     ), difficulty) { difficulty = it }
+                    ChoiceRow("Training", listOf(
+                        "Off" to false, "On" to true,
+                    ), training) { training = it }
                 }
 
                 ChoiceRow("You play", listOf(
@@ -53,7 +57,7 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
             }
 
             Button(
-                onClick = { onStart(GameConfig(difficulty, colorChoice, opponent)) },
+                onClick = { onStart(GameConfig(difficulty, colorChoice, opponent, training)) },
                 modifier = Modifier.fillMaxWidth(0.5f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFC62828), contentColor = Color.White,
