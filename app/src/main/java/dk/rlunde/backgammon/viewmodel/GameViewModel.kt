@@ -39,7 +39,9 @@ class GameViewModel internal constructor(
      * (null for hot-seat). The default creates a real controller with a random roller and
      * the standard starting position.
      */
-    private val controllerFactory: ((Player?) -> GameController)? = null,
+    private val controllerFactory: (Player?) -> GameController = { side ->
+        GameController(initial = startingPosition(), aiSide = side)
+    },
     /**
      * Coroutine scope for launching background work. Defaults to [viewModelScope] (lazy) so
      * production is unaffected. Tests inject a [TestScope] to avoid Android's Looper.
@@ -79,8 +81,7 @@ class GameViewModel internal constructor(
         aiPlayer = aiSide?.let { HeuristicAiPlayer(config.difficulty) }
         driver = aiSide?.let { AiTurnDriver(it, aiPlayer) }
         training = config.training && config.opponent == Opponent.COMPUTER
-        controller = controllerFactory?.invoke(aiSide)
-            ?: GameController(initial = startingPosition(), aiSide = aiSide)
+        controller = controllerFactory(aiSide)
         publish()
         maybeRunAi()
     }
@@ -111,6 +112,12 @@ class GameViewModel internal constructor(
         publish()
     }
 
+    /**
+     * Launches off-thread analysis of the human's just-committed move (training mode only).
+     * Clears [analysis] synchronously and re-publishes on completion via the epoch guard.
+     * Caller MUST call [publish] afterwards — this function does not publish on its synchronous
+     * path (the non-training early-return relies on the caller's publish to refresh the UI).
+     */
     private fun analyzeLastHumanMove() {
         if (!training) return
         val lc = controller.lastCommitted ?: return

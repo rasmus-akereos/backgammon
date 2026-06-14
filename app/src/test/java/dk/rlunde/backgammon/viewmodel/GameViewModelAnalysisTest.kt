@@ -72,7 +72,7 @@ class GameViewModelAnalysisTest {
     private fun stageAndCommit(vm: GameViewModel, dice: Dice): Boolean {
         vm.onRoll()
         val board = vm.uiState.value.board
-        val legal = MoveGenerator.legalMoves(board, dice)
+        val legal = MoveGenerator.legalMoves(board, vm.uiState.value.dice!!)
         if (legal.isEmpty()) return false
         vm.controllerForTest().stageForTest(legal.first())
         vm.onCommit()
