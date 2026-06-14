@@ -8,10 +8,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class EvaluatorBreakdownTest {
-    private fun board(points: IntArray, whiteOff: Int = 0, blackOff: Int = 0,
-                      toMove: Player = Player.WHITE) =
+    private fun board(points: IntArray, whiteBar: Int = 0, blackBar: Int = 0,
+                      whiteOff: Int = 0, blackOff: Int = 0, toMove: Player = Player.WHITE) =
         BoardState(points,
-            mapOf(Player.WHITE to 0, Player.BLACK to 0),
+            mapOf(Player.WHITE to whiteBar, Player.BLACK to blackBar),
             mapOf(Player.WHITE to whiteOff, Player.BLACK to blackOff), toMove)
 
     @Test fun `breakdown sums to evaluate on contact positions`() {
@@ -46,5 +46,11 @@ class EvaluatorBreakdownTest {
 
     @Test fun `Feature count matches Weights field count`() {
         assertEquals(10, Feature.entries.size)
+    }
+
+    @Test fun `BAR contribution is non-zero with a checker on the bar`() {
+        val s = board(IntArray(26).also { it[6] = 2; it[20] = -3 }, whiteBar = 1)
+        val bar = Evaluator.breakdown(s, Player.WHITE, Weights.FULL).first { it.feature == Feature.BAR }
+        assertTrue(bar.value != 0.0, "own checker on the bar should move the BAR term")
     }
 }
