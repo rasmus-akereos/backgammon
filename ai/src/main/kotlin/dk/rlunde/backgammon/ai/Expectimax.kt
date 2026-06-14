@@ -75,6 +75,22 @@ internal object Expectimax {
         sortedByDescending { Evaluator.evaluate(MoveGenerator.apply(from, it), from.toMove, weights) }
             .take(topK)
 
+    /**
+     * Score EVERY [legal] play for analysis (no root pruning, so playedRank is exact), sorted
+     * best-first. score is human-perspective: -value(apply(state, m), depth). Pass a generous
+     * [budget] (analysis is off-main-thread, one-shot) so every candidate is scored at the same
+     * depth — never mix depth-1 with a depth-0 fallback. Pre: [state] is NOT game-over.
+     */
+    fun rankMoves(
+        state: BoardState, dice: Dice, legal: List<Move>,
+        weights: Weights, depth: Int, budget: NodeBudget,
+    ): List<AnalyzedPlay> {
+        require(legal.isNotEmpty()) { "rankMoves called with no legal moves" }
+        return legal
+            .map { m -> AnalyzedPlay(m, -value(MoveGenerator.apply(state, m), depth, weights, Int.MAX_VALUE, budget)) }
+            .sortedByDescending { it.score }
+    }
+
     /** Test seam: full expectimax node value with no pruning and an effectively unlimited budget. */
     internal fun expectedValueForTest(state: BoardState, depth: Int, weights: Weights): Double =
         value(state, depth, weights, Int.MAX_VALUE, NodeBudget(Int.MAX_VALUE))
