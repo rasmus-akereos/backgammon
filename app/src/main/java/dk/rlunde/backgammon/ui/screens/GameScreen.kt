@@ -221,8 +221,8 @@ private fun TrackingPanel(
         // Push the dice + controls to the bottom of the panel.
         Spacer(Modifier.weight(1f))
 
-        // Band marker chip — shown when analysis is available
-        if (state.analysis != null) {
+        // Band marker chip — shown when training is on and analysis is available
+        if (state.training && state.analysis != null) {
             val (bandLabel, bandColor) = bandDisplay(state.analysis)
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -260,8 +260,8 @@ private fun TrackingPanel(
                     ),
                 ) { Text("Roll") }
                 Phase.MOVING -> {
-                    // Analyse button: enabled when it's the human's turn and dice are available
-                    val canAnalyse = state.aiSide != null && state.toMove != state.aiSide && state.dice != null
+                    // Analyse button: enabled when training is on, it's the human's turn, and dice are available
+                    val canAnalyse = state.training && state.aiSide != null && state.toMove != state.aiSide && state.dice != null
                     if (canAnalyse) {
                         OutlinedButton(onClick = onAnalyse, modifier = Modifier.fillMaxWidth()) { Text("Analyse") }
                         Spacer(Modifier.height(8.dp))

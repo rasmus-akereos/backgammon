@@ -87,7 +87,7 @@ class GameViewModel internal constructor(
     }
 
     private fun publish(humanEvents: List<UiEvent> = emptyList()) {
-        _uiState.value = controller.uiState.copy(aiThinking = aiThinking, aiSide = aiSide, analysis = analysis)
+        _uiState.value = controller.uiState.copy(aiThinking = aiThinking, aiSide = aiSide, training = training, analysis = analysis)
         humanEvents.forEach { _events.trySend(it) }
     }
 
@@ -134,6 +134,7 @@ class GameViewModel internal constructor(
     }
 
     fun onAnalyse() {
+        if (!training) return
         if (controller.uiState.toMove == aiSide) return
         val board = controller.uiState.board
         val dice = controller.uiState.dice ?: return

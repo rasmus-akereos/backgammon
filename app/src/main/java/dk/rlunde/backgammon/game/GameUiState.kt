@@ -42,6 +42,8 @@ data class GameUiState(
     val aiThinking: Boolean = false,
     /** Set by the VM: the colour the computer plays (null = hot-seat). */
     val aiSide: Player? = null,
+    /** Set by the VM: true when training mode is active (vs-computer + toggle on). */
+    val training: Boolean = false,
     /** Set by the VM: latest analysis of the human's last move (training mode), else null. */
     val analysis: MoveAnalysis? = null,
 )
