@@ -24,13 +24,19 @@ class RankMovesTest {
     @Test fun `ranking is sorted best-first and human-perspective`() {
         val r = rank(1)
         for (i in 1 until r.size) assertTrue(r[i - 1].score >= r[i].score, "not sorted at $i")
-        assertTrue(r.first().score >= r.last().score)
     }
 
     @Test fun `top of ranking equals bestMove at equal depth with full root set`() {
         val depth = 0
         val top = rank(depth).first().move
         val best = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth, topK = Int.MAX_VALUE,
+            budget = NodeBudget(Int.MAX_VALUE))
+        assertEquals(best, top)
+    }
+
+    @Test fun `top of ranking equals bestMove at depth 1`() {
+        val top = rank(1).first().move
+        val best = Expectimax.bestMove(s, dice, legal, Weights.FULL, depth = 1, topK = Int.MAX_VALUE,
             budget = NodeBudget(Int.MAX_VALUE))
         assertEquals(best, top)
     }

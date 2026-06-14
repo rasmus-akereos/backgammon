@@ -82,10 +82,11 @@ internal object Expectimax {
      * depth — never mix depth-1 with a depth-0 fallback. Pre: [state] is NOT game-over.
      */
     fun rankMoves(
-        state: BoardState, dice: Dice, legal: List<Move>,
+        state: BoardState, dice: Dice, legal: List<Move>,   // dice unused here; kept for symmetry with bestMove + the analyzer call site
         weights: Weights, depth: Int, budget: NodeBudget,
     ): List<AnalyzedPlay> {
         require(legal.isNotEmpty()) { "rankMoves called with no legal moves" }
+        budget.spend(legal.size)
         return legal
             .map { m -> AnalyzedPlay(m, -value(MoveGenerator.apply(state, m), depth, weights, Int.MAX_VALUE, budget)) }
             .sortedByDescending { it.score }
