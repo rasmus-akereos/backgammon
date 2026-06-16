@@ -4,10 +4,10 @@ import kotlin.math.exp
 import kotlin.math.min
 
 /** Inputs to the gammon model, describing the side that is assumed to LOSE. */
-data class GammonFeatures(val borneOff: Int, val pip: Int, val backContact: Int)
+internal data class GammonFeatures(val borneOff: Int, val pip: Int, val backContact: Int)
 
 /** Conditional rates given that side loses: P(gammoned), P(backgammoned). */
-data class GammonRates(val gammon: Double, val backgammon: Double)
+internal data class GammonRates(val gammon: Double, val backgammon: Double)
 
 /**
  * Feature-based logistic for gammon/backgammon rates, conditioned on a side losing (spec §4.4).

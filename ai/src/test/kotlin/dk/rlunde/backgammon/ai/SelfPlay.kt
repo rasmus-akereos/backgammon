@@ -36,7 +36,7 @@ fun selfPlay(white: AiPlayer, black: AiPlayer, roller: DiceRoller, maxTurns: Int
 }
 
 /** One labelled ply: the mover's post-move static eval, phase, and gammon features for each side. */
-data class CalibrationSample(
+internal data class CalibrationSample(
     val mover: Player,
     val eval: Double,
     val phase: GamePhase,
@@ -44,7 +44,7 @@ data class CalibrationSample(
     val loserFeatures: GammonFeatures,  // mover-as-loser features (if mover loses)
 )
 
-data class CalibrationGame(val samples: List<CalibrationSample>, val result: GameResult)
+internal data class CalibrationGame(val samples: List<CalibrationSample>, val result: GameResult)
 
 /** Like [selfPlay] but records a sample after each non-pass move, for offline calibration. */
 internal fun selfPlayTrajectory(
