@@ -110,6 +110,10 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
                     text = "Best play: ${notation(analysis.best.move)}  (2-ply)",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                analysis.positionEquity?.let { eq ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(text = equityLine(eq), style = MaterialTheme.typography.bodyMedium)
+                }
             } else {
                 // Full post-move comparison view
                 val winProbDrop = analysis.winProbDrop
@@ -121,6 +125,11 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
                 } else {
                     val qualitative = if (analysis.terminal) "Game-ending move" else "Forced win/loss line"
                     Text(text = qualitative, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                analysis.positionEquity?.let { eq ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(text = equityLine(eq), style = MaterialTheme.typography.bodyMedium)
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -164,7 +173,7 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
                 if (winProbDrop != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "* win% is approximate (uncalibrated, single-win only)",
+                        text = "* win% self-play-calibrated; gammon rates are model estimates (no rollouts)",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
