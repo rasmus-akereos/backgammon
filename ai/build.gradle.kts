@@ -26,4 +26,9 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     jvmArgs("-ea") // enable assertions so check()/require() invariants fire under test
+    // Forward opt-in gate flags to the forked test JVM (e.g. -Dbackgammon.calibrate=true),
+    // which Gradle does NOT propagate by default. Covers the gated benchmark + calibration harnesses.
+    for (key in listOf("backgammon.benchmark", "backgammon.calibrate")) {
+        System.getProperty(key)?.let { systemProperty(key, it) }
+    }
 }

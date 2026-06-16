@@ -8,10 +8,11 @@ import kotlin.math.exp
  * EquityCalibrationTest (spec §5) and committed below. See spec §4.3.
  */
 internal object WinProbability {
-    // Fitted offline (a later task). Until then these are the provisional Phase-3 value for both phases.
+    // Fitted offline by EquityCalibrationTest (2026-06-16, 400 ADVANCED/FULL self-play games).
+    // log-loss vs the K=0.1 baseline: CONTACT 0.628 vs 0.902, RACE 0.192 vs 0.224.
     internal val K: Map<GamePhase, Double> = mapOf(
-        GamePhase.CONTACT to 0.1,
-        GamePhase.RACE to 0.1,
+        GamePhase.CONTACT to 0.0378,
+        GamePhase.RACE to 0.0555,
     )
 
     fun fromEquity(equity: Double, phase: GamePhase): Double =

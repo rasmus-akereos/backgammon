@@ -11,13 +11,19 @@ data class GammonRates(val gammon: Double, val backgammon: Double)
 
 /**
  * Feature-based logistic for gammon/backgammon rates, conditioned on a side losing (spec §4.4).
- * Coefficients are fitted OFFLINE (a later task) and committed in [GAMMON_COEFFS] / [BG_COEFFS].
  * A borne-off checker makes a gammon impossible — hard-gated to 0 rather than trusted to the logistic.
+ *
+ * Coefficients are deliberately HAND-SET (directionally correct: more back-contact → more bg; a
+ * borne-off checker → no gammon). The 2026-06-16 automated fit was degenerate — `pip` is unscaled
+ * (~0–167) so its fitted weight saturated the logistic to ≈0 everywhere, and per-ply labels carry
+ * weak gammon signal. Rigorous gammon-rate calibration (feature scaling + decisive-position sampling)
+ * is deferred; the design (spec §4) only requires trustworthy gammon awareness by slice 6c. Win-prob
+ * IS self-play-calibrated (see WinProbability.K).
  */
 internal object GammonModel {
-    // {intercept, wBorneOff, wPip, wBackContact}. Provisional until calibration replaces them.
-    internal var GAMMON_COEFFS = doubleArrayOf(-2.0, -3.0, 0.02, 0.1)
-    internal var BG_COEFFS = doubleArrayOf(-5.0, -3.0, 0.01, 0.6)
+    // {intercept, wBorneOff, wPip, wBackContact}.
+    internal val GAMMON_COEFFS = doubleArrayOf(-2.0, -3.0, 0.02, 0.1)
+    internal val BG_COEFFS = doubleArrayOf(-5.0, -3.0, 0.01, 0.6)
 
     private fun logistic(c: DoubleArray, f: GammonFeatures): Double =
         1.0 / (1.0 + exp(-(c[0] + c[1] * f.borneOff + c[2] * f.pip + c[3] * f.backContact)))
