@@ -188,3 +188,18 @@ Strictly **read-only**: no cube, no double button, no change to move selection.
 - Name the exact reference weight set and seed for calibration reproducibility.
 - Decide sample count *N* and whether to subsample plies (avoid over-weighting long games).
 - Pin the gammon-model feature list precisely (the §4.4 set is the intended starting point).
+
+## 10. Calibration results (2026-06-16)
+
+First calibration run: 400 self-play games, reference `Difficulty.ADVANCED` (`Weights.FULL`, depth 1, deterministic), per-game seed `(g+1)·2654435761`.
+
+**Win probability — calibrated, shipped.** Per-phase logistic slopes fitted by `EquityCalibrationTest`, beating the `K=0.1` baseline on held log-loss:
+
+| phase | fitted K | log-loss | baseline (K=0.1) |
+|-------|----------|----------|------------------|
+| CONTACT | 0.0378 | 0.628 | 0.902 |
+| RACE | 0.0555 | 0.192 | 0.224 |
+
+Committed in `WinProbability.K`. The non-gated `EquityCalibrationGuardTest` pins this against the 50/50 baseline so the constants can't silently rot.
+
+**Gammon/backgammon rates — deferred.** The automated fit was degenerate: the `pip` feature is unscaled (~0–167), so its fitted weight saturated the logistic to ≈0 gammon everywhere, and per-ply labels carry weak gammon signal (every ply inherits the *game's* final outcome). `GammonModel` therefore keeps deliberate hand-set, directionally-correct coefficients (more back-contact → more bg; a borne-off checker → no gammon). Rigorous gammon-rate calibration (standardize features + sample decisive late positions) is deferred to a follow-up; per §4 the cube does not require trustworthy gammon awareness until slice 6c. Cubeless equity in 6a is therefore essentially gammonless (≈ `2·winProb − 1`), which is sound in races and the common case.

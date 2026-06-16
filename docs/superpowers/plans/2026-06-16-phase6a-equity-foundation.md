@@ -50,16 +50,16 @@ class GamePhaseTest {
     }
 
     @Test fun `fully separated position is race`() {
-        // WHITE all on point 1, BLACK all on point 24 -> whiteBack(1) < blackBack(24): no contact.
-        var s = BoardState.empty()
-        s = s.withCount(Player.WHITE, 1, 15)
-        s = s.withCount(Player.BLACK, 24, 15)
+        // points[index] holds +WHITE / −BLACK counts (BoardState encoding). WHITE on 1, BLACK on 24.
+        val p = IntArray(26).also { it[1] = 15; it[24] = -15 }
+        val s = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+            mapOf(Player.WHITE to 0, Player.BLACK to 0), Player.WHITE)
         assertEquals(GamePhase.RACE, GamePhases.of(s))
     }
 }
 ```
 
-> If `BoardState.empty()` / `withCount(...)` are not the exact constructors in `core/BoardState.kt`, replace with whatever the existing tests (e.g. `BoardStateTest.kt`, `PipCountTest.kt`) use to build a board. Check `core/src/test/kotlin/dk/rlunde/backgammon/core/` for the established builder before writing this test.
+> `BoardState` is a raw data class `BoardState(points: IntArray(26), bar: Map<Player,Int>, off: Map<Player,Int>, toMove)`; `points[i] > 0` is WHITE count, `< 0` is BLACK. There is no `empty()/withCount()`. See the `board(...)` helper in `ai/.../EvaluatorTest.kt` for the established pattern.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -387,11 +387,10 @@ import kotlin.test.assertEquals
 
 class GammonFeaturesOfTest {
     @Test fun `loser back-contact counts bar plus checkers in winner home`() {
-        // Winner = WHITE (home 1..6). Loser = BLACK with a checker on the bar and two on point 3.
-        var s = BoardState.empty()
-        s = s.withBar(Player.BLACK, 1)
-        s = s.withCount(Player.BLACK, 3, 2)   // inside WHITE's home (1..6)
-        s = s.withCount(Player.BLACK, 13, 12)
+        // +WHITE / −BLACK counts. Winner = WHITE (home 1..6). BLACK: 1 on bar, 2 on point 3, 12 on 13.
+        val p = IntArray(26).also { it[3] = -2; it[13] = -12 }
+        val s = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 1),
+            mapOf(Player.WHITE to 0, Player.BLACK to 0), Player.WHITE)
         val f = gammonFeaturesOf(s, loser = Player.BLACK)
         assertEquals(3, f.backContact)        // 1 on bar + 2 on point 3
         assertEquals(0, f.borneOff)
@@ -399,8 +398,6 @@ class GammonFeaturesOfTest {
     }
 }
 ```
-
-> Adjust `withBar` / `withCount` / `empty` to the real `core/BoardState.kt` API (same builder Task 1 used).
 
 - [ ] **Step 2: Run test to verify it fails**
 
