@@ -8,6 +8,7 @@ import dk.rlunde.backgammon.core.startingPosition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MoveAnalyzerTest {
@@ -44,6 +45,13 @@ class MoveAnalyzerTest {
         val reversed = Move(best.subMoves.reversed())
         val a = MoveAnalyzer.analyze(s, dice, reversed, legal)
         assertEquals(1, a.playedRank)
+    }
+
+    @Test fun `analysis carries position equity from the human perspective`() {
+        val a = MoveAnalyzer.analyze(s, dice, rankedBest(), legal)
+        val eq = a.positionEquity
+        assertNotNull(eq)
+        assertTrue(eq.winProb in 0.0..1.0)
     }
 
     @Test fun `move not in legal fails fast`() {

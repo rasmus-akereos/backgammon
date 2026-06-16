@@ -73,6 +73,8 @@ object MoveAnalyzer {
         val winProbDrop: Double? = if (suppressed) null
             else WinProbability.fromEquity(best.score, GamePhases.of(bestBoard)) -
                  WinProbability.fromEquity(played.score, GamePhases.of(playedBoard))
+        val positionEquity: OutcomeDistribution? = if (suppressed) null
+            else EquityModel.distribution(playedBoard, state.toMove, REFERENCE_WEIGHTS)
 
         return MoveAnalysis(
             band = band(playedRank, evalLoss),
@@ -81,6 +83,7 @@ object MoveAnalyzer {
             totalCandidates = legal.size,
             evalLoss = evalLoss,
             winProbDrop = winProbDrop,
+            positionEquity = positionEquity,
             terminal = terminal,
             best = best,
             played = played,

@@ -21,6 +21,8 @@ data class MoveAnalysis(
     val totalCandidates: Int,
     val evalLoss: Double,
     val winProbDrop: Double?,
+    /** Calibrated outcome distribution of the played position (human perspective); null when suppressed. */
+    val positionEquity: OutcomeDistribution?,
     val terminal: Boolean,
     val best: AnalyzedPlay,
     val played: AnalyzedPlay,
