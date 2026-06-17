@@ -18,6 +18,9 @@ class GameController(
     private val staged = mutableListOf<SubMove>()
     private var selectedOrigin: BoardTarget? = null
     private var passing = false
+    private var cube: CubeState = CubeState()
+    private var doubler: Player? = null
+    private var terminal: TerminalResult? = null
 
     var lastCommitted: CommittedTurn? = null; private set
     var uiState: GameUiState = compute(); private set
@@ -44,6 +47,39 @@ class GameController(
         passing = false
         staged.clear()
         selectedOrigin = null
+        uiState = compute()
+    }
+
+    /** Offer a double before rolling. Hot-seat only in 6b-i; no-op otherwise. */
+    fun offerDouble() {
+        if (aiSide != null) return                       // cube inactive vs computer (6b-i)
+        if (uiState.phase != Phase.NEED_ROLL) return
+        if (!cube.mayDouble(committed.toMove)) return
+        doubler = committed.toMove
+        uiState = compute()
+    }
+
+    /** Respond to an outstanding double. No-op unless [Phase.CUBE_OFFERED]. */
+    fun respondDouble(response: CubeResponse) {
+        if (uiState.phase != Phase.CUBE_OFFERED) return
+        val theDoubler = doubler ?: return
+        when (response) {
+            CubeResponse.TAKE -> {
+                cube = cube.afterTake(theDoubler.opponent)
+                doubler = null
+            }
+            CubeResponse.DROP -> {
+                terminal = TerminalResult(theDoubler, winValue = 1, EndReason.DROP)
+                doubler = null
+            }
+        }
+        uiState = compute()
+    }
+
+    /** Concede the current game (a single). The opponent wins cube.value × 1. No-op once terminal/offered. */
+    fun resign(loser: Player) {
+        if (uiState.phase == Phase.GAME_OVER || uiState.phase == Phase.CUBE_OFFERED) return
+        terminal = TerminalResult(loser.opponent, winValue = 1, EndReason.RESIGN)
         uiState = compute()
     }
 
@@ -117,6 +153,9 @@ class GameController(
         staged.clear()
         selectedOrigin = null
         passing = false
+        cube = CubeState()
+        doubler = null
+        terminal = null
         uiState = compute()
     }
 
@@ -149,9 +188,14 @@ class GameController(
     private fun compute(): GameUiState {
         val partial = MoveGenerator.applyPartial(committed, staged)
         val d = dice
-        val over = Scoring.isGameOver(committed)
+        // Single terminal source: an explicit terminal (drop/resign) OR a board win.
+        val result: TerminalResult? = terminal
+            ?: if (Scoring.isGameOver(committed))
+                   Scoring.winnerAndValue(committed)!!.let { TerminalResult(it.first, it.second, EndReason.BORNE_OFF) }
+               else null
         val phase = when {
-            over -> Phase.GAME_OVER
+            result != null -> Phase.GAME_OVER
+            doubler != null -> Phase.CUBE_OFFERED
             // Auto-pass awaiting acknowledgePass(): keep it MOVING so roll()/commit() stay no-ops
             // (a no-moves roll computes maxUsablePips == 0, which would otherwise read COMMITTABLE).
             passing -> Phase.MOVING
@@ -166,7 +210,6 @@ class GameController(
             val next = TurnPlanner.legalNextSubMoves(partial, remainingDice(d))
             next[key]?.map { destinationTarget(it) }?.toSet() ?: emptySet()
         } else emptySet()
-        val wv = if (over) Scoring.winnerAndValue(committed) else null
         return GameUiState(
             board = partial,
             toMove = committed.toMove,
@@ -178,8 +221,10 @@ class GameController(
             stagedMoves = staged.toList(),
             whitePip = Scoring.pipCount(partial, Player.WHITE),
             blackPip = Scoring.pipCount(partial, Player.BLACK),
-            winner = wv?.first,
-            winValue = wv?.second ?: 0,
+            winner = result?.winner,
+            winValue = result?.winValue ?: 0,
+            cube = cube,
+            endReason = result?.reason,
         )
     }
 }
