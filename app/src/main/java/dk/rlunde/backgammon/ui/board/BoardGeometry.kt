@@ -66,6 +66,18 @@ class BoardGeometry(private val w: Float, private val h: Float) {
 
     fun diceRect(): BoardRect = BoardRect(0f, rowH - rowH * 0.15f, halfW, rowH + rowH * 0.15f)
 
+    /** Square cube indicator in the bear-off tray column. y depends on the cube owner. */
+    fun cubeRect(owner: Player?): BoardRect {
+        val size = trayW * 0.8f
+        val cx = playW + trayW / 2f
+        val cy = when (owner) {
+            null -> h / 2f
+            Player.WHITE -> h * 0.75f   // White home is the bottom half
+            Player.BLACK -> h * 0.25f
+        }
+        return BoardRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f)
+    }
+
     fun hitTest(x: Float, y: Float): BoardTarget? {
         if (x < 0f || y < 0f || x > w || y > h) return null
         if (diceRect().contains(x, y)) return BoardTarget.Dice
