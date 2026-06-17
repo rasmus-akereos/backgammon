@@ -25,7 +25,7 @@ import dk.rlunde.backgammon.viewmodel.GameViewModel
 @Composable
 fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
-    val isAiTurn = state.aiSide != null && state.toMove == state.aiSide
+    val isAiTurn = state.isAiTurn
     var showPass by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
 

@@ -46,4 +46,11 @@ data class GameUiState(
     val training: Boolean = false,
     /** Set by the VM: latest analysis of the human's last move (training mode), else null. */
     val analysis: MoveAnalysis? = null,
-)
+) {
+    /**
+     * True only while it is genuinely the computer's turn to act. Excludes [Phase.GAME_OVER]:
+     * the winning play flips [toMove] to the side that would have moved next, so without this guard
+     * a human win would leave the AI side "to move" and the UI stuck on "AI thinking…".
+     */
+    val isAiTurn: Boolean get() = aiSide != null && toMove == aiSide && phase != Phase.GAME_OVER
+}
