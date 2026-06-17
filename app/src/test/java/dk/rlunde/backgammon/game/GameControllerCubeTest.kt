@@ -111,7 +111,7 @@ class GameControllerCubeTest {
         c.respondDouble(CubeResponse.TAKE)                 // cube = 2, doubler on roll
         assertEquals(Phase.NEED_ROLL, c.uiState.phase)
         c.roll()                                           // doubler rolls a normal turn
-        assertEquals(2, c.uiState.cube.value)              // cube unaffected by rolling
-        assertEquals(4, c.uiState.cube.value * 2)          // effectiveStake at a gammon = cube × 2
+        assertEquals(2, c.uiState.cube.value)              // cube survives the take→roll transition
+        // The board-win × cube stake arithmetic itself is covered by ResultTextTest.formatResult.
     }
 }
