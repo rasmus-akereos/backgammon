@@ -289,6 +289,7 @@ private fun TrackingPanel(
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
                 }
+                Phase.CUBE_OFFERED -> {} // Take/Drop controls wired in Task 10
                 Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
             }
         }
