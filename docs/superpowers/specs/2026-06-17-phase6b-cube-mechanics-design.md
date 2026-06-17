@@ -31,6 +31,7 @@ A fully working doubling cube in **hot-seat** money play: either player offers a
 - A unified terminal result so drop and board-win share one game-over path.
 - Cube-scaled game value (`effectiveStake = cube.value × winValue`) including the drop case.
 - UI: cube indicator, "Double" button, Take/Drop controls, cube-aware result text — **hot-seat only**.
+- **Resign**: a button (both modes — it's unilateral, no opponent decision) that concedes the current game; the opponent wins `cube.value × 1` (a single). Reuses the terminal path; confirmation-gated to avoid accidental taps.
 
 **Out of scope (explicit)**
 - ❌ **AI cube decisions** (offer / take / drop) and the vs-computer cube — **6b-ii**. In vs-computer mode the cube is inactive: no Double button, no indicator interaction; games play exactly as today.
@@ -74,15 +75,18 @@ Doubling happens at the start of a turn, before the roll. After any commit, `com
 New state on `GameController`: `cube: CubeState` (default centred 1), a pending-double marker `doubler: Player?`, and a unified `terminal: TerminalResult?`.
 
 ```kotlin
-/** The single source of game-over truth: a board win OR a cube drop. */
-data class TerminalResult(val winner: Player, val winValue: Int) // winValue = gammon multiplier (1/2/3); drop = 1
+enum class EndReason { BORNE_OFF, DROP, RESIGN }   // drives the result-text parenthetical
+/** The single source of game-over truth: board win, cube drop, or resignation. */
+data class TerminalResult(val winner: Player, val winValue: Int, val reason: EndReason)
+// winValue = gammon multiplier (1/2/3) for BORNE_OFF; 1 for DROP and RESIGN.
 ```
 
 - **`Phase.CUBE_OFFERED`** added to the `Phase` enum.
 - **`offerDouble()`** — legal only when `phase == NEED_ROLL` and `cube.mayDouble(committed.toMove)`; in vs-computer it is additionally gated to hot-seat (`aiSide == null`) for 6b-i. Sets `doubler = committed.toMove`, phase `CUBE_OFFERED`. Cube value unchanged. No-op otherwise. **Policy-free:** `offerDouble`/`respondDouble` are always invoked by external code (UI/tests); no policy type is imported into `GameController`.
 - **`respondDouble(response: CubeResponse)`** — legal only when `phase == CUBE_OFFERED` (no-op otherwise). Responder = `doubler.opponent`.
   - `TAKE` → `cube = cube.afterTake(doubler.opponent)`; clear `doubler`; phase returns to `NEED_ROLL`, same player on roll (the doubler).
-  - `DROP` → `terminal = TerminalResult(winner = doubler, winValue = 1)`; clear `doubler`; phase `GAME_OVER`. Cube left undoubled.
+  - `DROP` → `terminal = TerminalResult(doubler, winValue = 1, EndReason.DROP)`; clear `doubler`; phase `GAME_OVER`. Cube left undoubled.
+- **`resign(loser: Player)`** — legal in any non-terminal play phase (`NEED_ROLL`/`MOVING`/`COMMITTABLE`; no-op in `CUBE_OFFERED` and `GAME_OVER`). Sets `terminal = TerminalResult(loser.opponent, winValue = 1, EndReason.RESIGN)`; phase `GAME_OVER`. Unilateral — no opponent decision — so it works in **both** modes. The caller supplies `loser`: the UI passes the human's side in vs-computer, or `committed.toMove` in hot-seat.
 
 **`compute()` — single terminal path (avoids calling `Scoring.winnerAndValue` on a non-terminal board):**
 ```
@@ -94,7 +98,7 @@ phase = when {
     else -> (existing MOVING/COMMITTABLE logic)
 }
 val result: TerminalResult? = terminal
-    ?: if (Scoring.isGameOver(committed)) Scoring.winnerAndValue(committed)!!.let { TerminalResult(it.first, it.second) } else null
+    ?: if (Scoring.isGameOver(committed)) Scoring.winnerAndValue(committed)!!.let { TerminalResult(it.first, it.second, EndReason.BORNE_OFF) } else null
 // winner = result?.winner ; winValue = result?.winValue ?: 0
 ```
 `Scoring.winnerAndValue` is only ever called on a real board win. `newGame()` resets all three new fields explicitly: `cube = CubeState(); doubler = null; terminal = null` (the VM also re-instantiates `GameController`, which resets them via the default constructor — both paths must reset).
@@ -108,16 +112,17 @@ val result: TerminalResult? = terminal
 - **Cube indicator:** a 24dp × 24dp square showing the cube's current face value, drawn in the side rail via `BoardGeometry` — vertically centred when the cube is centred, shifted toward the owner's half (≈25% / 75% of rail height) when owned. Shown only in hot-seat games.
 - **"Double" button:** shown when `canDouble`; appears to the left of "Roll" (Roll does not move). Tap → `offerDouble()`.
 - **Take / Drop controls:** shown when `phase == CUBE_OFFERED`. The responding player's colour/name is labelled prominently (hot-seat shares one device — make it clear whose decision it is). Tap → `respondDouble(TAKE | DROP)`.
-- **Result text:** conventional phrasing including the cube, e.g. `"Black wins 4 (gammon, 2-cube)"`, `"White wins 2 (drop)"`. Produced by a pure `formatResult(winner, winValue, cube, dropped)` function (unit-tested).
+- **Resign button** (both modes): shown during play (not `CUBE_OFFERED`/`GAME_OVER`). Tap → a confirmation dialog ("Resign this game?"); on confirm → `resign(loser)` where `loser` = the human side (vs-computer) or `toMove` (hot-seat).
+- **Result text:** conventional phrasing including the cube, e.g. `"Black wins 4 (gammon, 2-cube)"`, `"White wins 2 (drop)"`, `"Black wins 1 (resign)"`. Produced by a pure `formatResult(winner, winValue, cube, reason)` function (unit-tested), where the parenthetical comes from `reason`/`winValue`.
 - **Per-phase control visibility:**
 
-  | Phase | Roll | Double | Take/Drop | Commit | Undo |
-  |-------|------|--------|-----------|--------|------|
-  | NEED_ROLL | ✓ | ✓ (if `canDouble`) | — | — | — |
-  | CUBE_OFFERED | — | — | ✓ | — | — |
-  | MOVING | — | — | — | — | ✓ |
-  | COMMITTABLE | — | — | — | ✓ | ✓ |
-  | GAME_OVER | — | — | — | — | — |
+  | Phase | Roll | Double | Take/Drop | Commit | Undo | Resign |
+  |-------|------|--------|-----------|--------|------|--------|
+  | NEED_ROLL | ✓ | ✓ (if `canDouble`) | — | — | — | ✓ |
+  | CUBE_OFFERED | — | — | ✓ | — | — | — |
+  | MOVING | — | — | — | — | ✓ | ✓ |
+  | COMMITTABLE | — | — | — | ✓ | ✓ | ✓ |
+  | GAME_OVER | — | — | — | — | — | — |
 
 ## 8. Testing
 
@@ -131,18 +136,19 @@ val result: TerminalResult? = terminal
   - Board-win stake: `effectiveStake == cube.value × multiplier`.
   - **Full loop:** `NEED_ROLL → offerDouble → TAKE → roll → stage → commit → … → GAME_OVER`, asserting the final `effectiveStake`.
   - Take → roll → no legal moves → auto-pass path fires cleanly.
+  - **Resign:** `resign(loser)` → `GAME_OVER`, `winner = loser.opponent`, `winValue = 1`, `reason = RESIGN`, `effectiveStake == cube.value`; legal in `NEED_ROLL`/`MOVING`/`COMMITTABLE`, no-op in `CUBE_OFFERED`/`GAME_OVER`.
   - `newGame()` recentres the cube and clears `doubler`/`terminal`.
 
 **UI**
-- `canDouble` visibility (incl. `aiSide == null` gate) and the per-phase control matrix as pure logic.
-- `formatResult(...)` output strings (single/gammon/backgammon × cube value, and drop).
+- `canDouble` visibility (incl. `aiSide == null` gate), the Resign button's visibility (hidden in `CUBE_OFFERED`/`GAME_OVER`), and the per-phase control matrix as pure logic.
+- `formatResult(...)` output strings (single/gammon/backgammon × cube value, drop, and resign).
 
 ## 9. Files (anticipated)
 
 - `app/.../game/CubeState.kt` — new (`CubeState`, `CubeResponse`).
-- `app/.../game/GameController.kt` — `Phase.CUBE_OFFERED`, `offerDouble`/`respondDouble`, `cube`/`doubler`/`terminal`, unified `compute()` (edit; grows to ~240 lines, no extraction planned for 6b).
-- `app/.../game/GameUiState.kt` — `cube`, computed `canDouble`, `TerminalResult` (edit).
-- `app/.../ui/screens/GameScreen.kt` — Double/Take/Drop controls, result text, `formatResult` (edit/new).
+- `app/.../game/GameController.kt` — `Phase.CUBE_OFFERED`, `offerDouble`/`respondDouble`/`resign`, `cube`/`doubler`/`terminal`, unified `compute()` (edit; grows to ~250 lines, no extraction planned for 6b).
+- `app/.../game/GameUiState.kt` — `cube`, computed `canDouble`, `TerminalResult` + `EndReason` (edit).
+- `app/.../ui/screens/GameScreen.kt` — Double/Take/Drop + Resign controls, confirm dialog, result text, `formatResult` (edit/new).
 - `app/.../ui/board/BoardGeometry.kt` / `BoardCanvas.kt` — cube indicator (edit).
 - Tests alongside each.
 
