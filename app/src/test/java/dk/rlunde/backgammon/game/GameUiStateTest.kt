@@ -29,7 +29,24 @@ class GameUiStateTest {
         assertEquals(false, state(Phase.GAME_OVER, Player.BLACK, aiSide = Player.BLACK).isAiTurn)
     }
 
-    private fun state(phase: Phase, toMove: Player, aiSide: Player?) = GameUiState(
+    @Test fun `canDouble is true at need-roll with a centred cube in hot-seat`() {
+        assertEquals(true, state(Phase.NEED_ROLL, Player.WHITE, aiSide = null).canDouble)
+    }
+
+    @Test fun `canDouble is false during the AI's game`() {
+        assertEquals(false, state(Phase.NEED_ROLL, Player.WHITE, aiSide = Player.BLACK).canDouble)
+    }
+
+    @Test fun `canDouble is false when not at need-roll`() {
+        assertEquals(false, state(Phase.MOVING, Player.WHITE, aiSide = null).canDouble)
+    }
+
+    @Test fun `canDouble is false when the opponent owns the cube`() {
+        val s = state(Phase.NEED_ROLL, Player.WHITE, aiSide = null).copy(cube = CubeState(2, Player.BLACK))
+        assertEquals(false, s.canDouble)
+    }
+
+    private fun state(phase: Phase, toMove: Player, aiSide: Player?, cube: CubeState = CubeState()) = GameUiState(
         board = startingPosition(),
         toMove = toMove,
         dice = null,
@@ -43,5 +60,6 @@ class GameUiStateTest {
         winner = null,
         winValue = 0,
         aiSide = aiSide,
+        cube = cube,
     )
 }

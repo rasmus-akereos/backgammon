@@ -8,7 +8,13 @@ import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.core.SubMove
 import dk.rlunde.backgammon.ui.board.BoardTarget
 
-enum class Phase { NEED_ROLL, MOVING, COMMITTABLE, GAME_OVER }
+enum class Phase { NEED_ROLL, MOVING, COMMITTABLE, CUBE_OFFERED, GAME_OVER }
+
+/** Why a game ended — drives the result-text parenthetical. */
+enum class EndReason { BORNE_OFF, DROP, RESIGN }
+
+/** Single source of game-over truth: board win, cube drop, or resignation. */
+data class TerminalResult(val winner: Player, val winValue: Int, val reason: EndReason)
 
 /** The turn a human just committed, with its pre-move context, for post-move analysis. */
 data class CommittedTurn(
@@ -46,6 +52,10 @@ data class GameUiState(
     val training: Boolean = false,
     /** Set by the VM: latest analysis of the human's last move (training mode), else null. */
     val analysis: MoveAnalysis? = null,
+    /** Set by the controller: current doubling-cube state. */
+    val cube: CubeState = CubeState(),
+    /** Set by the controller: why the game ended (null until GAME_OVER). */
+    val endReason: EndReason? = null,
 ) {
     /**
      * True only while it is genuinely the computer's turn to act. Excludes [Phase.GAME_OVER]:
@@ -53,4 +63,7 @@ data class GameUiState(
      * a human win would leave the AI side "to move" and the UI stuck on "AI thinking…".
      */
     val isAiTurn: Boolean get() = aiSide != null && toMove == aiSide && phase != Phase.GAME_OVER
+
+    /** Hot-seat only in 6b-i: the player on roll may offer a double. */
+    val canDouble: Boolean get() = phase == Phase.NEED_ROLL && cube.mayDouble(toMove) && aiSide == null
 }

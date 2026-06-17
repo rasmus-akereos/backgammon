@@ -9,6 +9,7 @@ import dk.rlunde.backgammon.core.MoveGenerator
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.core.startingPosition
 import dk.rlunde.backgammon.game.AiTurnDriver
+import dk.rlunde.backgammon.game.CubeResponse
 import dk.rlunde.backgammon.game.GameConfig
 import dk.rlunde.backgammon.game.GameController
 import dk.rlunde.backgammon.game.GameUiState
@@ -96,6 +97,10 @@ class GameViewModel internal constructor(
     fun onUndo() { controller.undo(); publish() }
     fun onCommit() { controller.commit(); analyzeLastHumanMove(); publish(); maybeRunAi() }
     fun onAcknowledgePass() { controller.acknowledgePass(); publish(); maybeRunAi() }
+
+    fun onOfferDouble() { controller.offerDouble(); publish() }
+    fun onRespondDouble(response: CubeResponse) { controller.respondDouble(response); publish() }
+    fun onResign(loser: Player) { controller.resign(loser); publish() }
 
     fun onNewGame() {
         cancelAnalysis()

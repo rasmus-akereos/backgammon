@@ -15,6 +15,8 @@ import dk.rlunde.backgammon.ai.MoveAnalysis
 import dk.rlunde.backgammon.core.BoardState
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.core.SubMove
+import dk.rlunde.backgammon.game.CubeResponse
+import dk.rlunde.backgammon.game.EndReason
 import dk.rlunde.backgammon.game.GameUiState
 import dk.rlunde.backgammon.game.Phase
 import dk.rlunde.backgammon.game.UiEvent
@@ -28,6 +30,7 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
     val isAiTurn = state.isAiTurn
     var showPass by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
+    var showResign by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         vm.events.collect {
@@ -61,6 +64,9 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
                 onNewGame = onNewGame,
                 onAnalyse = vm::onAnalyse,
                 onBandClick = { showSheet = true },
+                onOfferDouble = vm::onOfferDouble,
+                onRespondDouble = vm::onRespondDouble,
+                onResign = { showResign = true },
             )
         }
     }
@@ -78,6 +84,23 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
         AnalysisSheet(
             analysis = state.analysis!!,
             onDismiss = { showSheet = false },
+        )
+    }
+
+    if (showResign) {
+        AlertDialog(
+            onDismissRequest = { showResign = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResign = false
+                    // vs-computer: the human resigns (aiSide.opponent). Hot-seat: the player on roll.
+                    val loser = state.aiSide?.opponent ?: state.toMove
+                    vm.onResign(loser)
+                }) { Text("Resign") }
+            },
+            dismissButton = { TextButton(onClick = { showResign = false }) { Text("Cancel") } },
+            title = { Text("Resign this game?") },
+            text = { Text("The opponent wins the current stake.") },
         )
     }
 }
@@ -196,6 +219,9 @@ private fun TrackingPanel(
     onNewGame: () -> Unit,
     onAnalyse: () -> Unit,
     onBandClick: () -> Unit,
+    onOfferDouble: () -> Unit = {},
+    onRespondDouble: (CubeResponse) -> Unit = {},
+    onResign: () -> Unit = {},
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         // --- Stats (top) -----------------------------------------------------------------
@@ -230,8 +256,10 @@ private fun TrackingPanel(
 
         if (state.phase == Phase.GAME_OVER && state.winner != null) {
             Spacer(Modifier.height(16.dp))
-            val v = when (state.winValue) { 3 -> "backgammon"; 2 -> "gammon"; else -> "single" }
-            Text("${state.winner} wins ($v)", style = MaterialTheme.typography.titleMedium)
+            Text(
+                formatResult(state.winner!!, state.winValue, state.cube, state.endReason ?: EndReason.BORNE_OFF),
+                style = MaterialTheme.typography.titleMedium,
+            )
         }
 
         // Push the dice + controls to the bottom of the panel.
@@ -267,14 +295,20 @@ private fun TrackingPanel(
         when {
             isAiTurn -> Text("AI thinking…", style = MaterialTheme.typography.titleMedium)
             else -> when (state.phase) {
-                Phase.NEED_ROLL -> Button(
-                    onClick = onRoll,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFC62828),
-                        contentColor = Color.White,
-                    ),
-                ) { Text("Roll") }
+                Phase.NEED_ROLL -> {
+                    if (state.canDouble) {
+                        OutlinedButton(onClick = onOfferDouble, modifier = Modifier.fillMaxWidth()) { Text("Double") }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Button(
+                        onClick = onRoll,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFC62828),
+                            contentColor = Color.White,
+                        ),
+                    ) { Text("Roll") }
+                }
                 Phase.MOVING -> {
                     // Analyse button: enabled when training is on, it's the human's turn, and dice are available
                     val canAnalyse = state.training && state.aiSide != null && state.toMove != state.aiSide && state.dice != null
@@ -289,8 +323,21 @@ private fun TrackingPanel(
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
                 }
+                Phase.CUBE_OFFERED -> {
+                    val responder = if (state.toMove == Player.WHITE) "BLACK" else "WHITE"
+                    Text("$responder — take or drop?", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { onRespondDouble(CubeResponse.TAKE) }, modifier = Modifier.fillMaxWidth()) { Text("Take") }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { onRespondDouble(CubeResponse.DROP) }, modifier = Modifier.fillMaxWidth()) { Text("Drop") }
+                }
                 Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
             }
+        }
+        // Resign is available during play (not while the AI is thinking, mid-cube-decision, or game over).
+        if (!isAiTurn && (state.phase == Phase.NEED_ROLL || state.phase == Phase.MOVING || state.phase == Phase.COMMITTABLE)) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onResign, modifier = Modifier.fillMaxWidth()) { Text("Resign") }
         }
     }
 }

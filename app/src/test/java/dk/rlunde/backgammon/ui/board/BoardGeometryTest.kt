@@ -4,6 +4,7 @@ import dk.rlunde.backgammon.core.Player
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class BoardGeometryTest {
     private val g = BoardGeometry(1080f, 1920f)
@@ -27,5 +28,19 @@ class BoardGeometryTest {
 
     @Test fun `tap outside any region returns null`() {
         assertNull(g.hitTest(-5f, -5f))
+    }
+
+    @Test fun `centred cube sits at mid-height in the tray column`() {
+        val centred = g.cubeRect(owner = null)
+        val tray = g.bearOffRect(Player.WHITE) // tray x-band on the right edge
+        assertTrue(centred.cx in tray.l..1080f, "cube x in tray column: ${centred.cx}")
+        assertEquals(960f, centred.cy, 1f) // mid-height of 1920
+    }
+
+    @Test fun `owned cube shifts toward the owner's half`() {
+        val white = g.cubeRect(owner = Player.WHITE) // White home = bottom
+        val black = g.cubeRect(owner = Player.BLACK) // top
+        assertTrue(white.cy > 960f, "white-owned cube in lower half")
+        assertTrue(black.cy < 960f, "black-owned cube in upper half")
     }
 }

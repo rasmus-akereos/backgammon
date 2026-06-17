@@ -9,8 +9,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import dk.rlunde.backgammon.core.Player
+import dk.rlunde.backgammon.game.CubeState
 import dk.rlunde.backgammon.game.GameUiState
 
 @Composable
@@ -56,7 +59,24 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     drawTray(g.bearOffRect(Player.BLACK), state.board.offCount(Player.BLACK), Player.BLACK)
     state.selectedOrigin?.let { highlightTarget(g, it) }
     state.destinations.forEach { highlightTarget(g, it) }
+    // Doubling cube (hot-seat only in 6b-i): a square in the tray column showing the face value.
+    if (state.aiSide == null) drawCube(g, state.cube)
     // Dice are rendered in the side panel (see GameScreen), not on the board.
+}
+
+private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState) {
+    val r = g.cubeRect(cube.owner)
+    drawRect(BoardColors.whiteChecker, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
+    drawRect(BoardColors.bar, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t),
+        style = Stroke(width = (r.r - r.l) * 0.06f))
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.BLACK
+        textAlign = android.graphics.Paint.Align.CENTER
+        textSize = (r.b - r.t) * 0.55f
+        isAntiAlias = true
+    }
+    // Vertically centre the text baseline within the square.
+    drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + paint.textSize * 0.35f, paint)
 }
 
 private fun DrawScope.drawTriangle(r: BoardRect, color: Color, pointingUp: Boolean) {
