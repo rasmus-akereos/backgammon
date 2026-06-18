@@ -1,6 +1,8 @@
 package dk.rlunde.backgammon.game
 
 import dk.rlunde.backgammon.ai.AiPlayer
+import dk.rlunde.backgammon.ai.CubeAdvisor
+import dk.rlunde.backgammon.ai.CubePolicy
 import dk.rlunde.backgammon.core.MoveGenerator
 import dk.rlunde.backgammon.core.Player
 import kotlinx.coroutines.CoroutineDispatcher
@@ -31,6 +33,14 @@ class AiTurnDriver(
         if (ai == null || aiSide == null || running) return
         if (controller.uiState.toMove != aiSide) return
         if (controller.uiState.phase == Phase.GAME_OVER) return
+        if (controller.uiState.phase == Phase.CUBE_OFFERED) return  // a double is pending — not our action
+
+        // Pre-roll: offer a double when clearly ahead and the cube is available.
+        if (controller.uiState.cube.mayDouble(aiSide) &&
+            CubePolicy.shouldDouble(CubeAdvisor.winProb(controller.uiState.board, aiSide))) {
+            controller.offerDouble(); publish()
+            return
+        }
 
         running = true
         onThinking(true); publish()
