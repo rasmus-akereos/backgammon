@@ -17,7 +17,12 @@ import dk.rlunde.backgammon.game.CubeState
 import dk.rlunde.backgammon.game.GameUiState
 
 @Composable
-fun BoardCanvas(state: GameUiState, onTap: (BoardTarget) -> Unit, modifier: Modifier = Modifier) {
+fun BoardCanvas(
+    state: GameUiState,
+    onTap: (BoardTarget) -> Unit,
+    modifier: Modifier = Modifier,
+    onCubeTap: () -> Unit = {},
+) {
     // Sizing is the caller's responsibility (see GameScreen): the geometry is proportional and
     // adapts to whatever w×h the Canvas is given.
     Canvas(
@@ -25,7 +30,9 @@ fun BoardCanvas(state: GameUiState, onTap: (BoardTarget) -> Unit, modifier: Modi
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val g = BoardGeometry(size.width.toFloat(), size.height.toFloat())
-                    g.hitTest(offset.x, offset.y)?.let(onTap)
+                    // A tap on the cube square offers a double (the handler gates on canDouble).
+                    if (g.cubeRect(state.cube.owner).contains(offset.x, offset.y)) onCubeTap()
+                    else g.hitTest(offset.x, offset.y)?.let(onTap)
                 }
             }
     ) {
@@ -59,16 +66,18 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     drawTray(g.bearOffRect(Player.BLACK), state.board.offCount(Player.BLACK), Player.BLACK)
     state.selectedOrigin?.let { highlightTarget(g, it) }
     state.destinations.forEach { highlightTarget(g, it) }
-    // Doubling cube (hot-seat only in 6b-i): a square in the tray column showing the face value.
-    if (state.aiSide == null) drawCube(g, state.cube)
+    // Doubling cube: a square in the tray column showing the face value. Shown in both modes
+    // (read-only vs computer in 6b-i); highlighted when the player on roll may double (tap to offer).
+    drawCube(g, state.cube, highlight = state.canDouble)
     // Dice are rendered in the side panel (see GameScreen), not on the board.
 }
 
-private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState) {
+private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState, highlight: Boolean) {
     val r = g.cubeRect(cube.owner)
     drawRect(BoardColors.whiteChecker, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
-    drawRect(BoardColors.bar, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t),
-        style = Stroke(width = (r.r - r.l) * 0.06f))
+    val border = if (highlight) BoardColors.highlight else BoardColors.bar
+    drawRect(border, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t),
+        style = Stroke(width = (r.r - r.l) * (if (highlight) 0.12f else 0.06f)))
     val paint = android.graphics.Paint().apply {
         color = android.graphics.Color.BLACK
         textAlign = android.graphics.Paint.Align.CENTER

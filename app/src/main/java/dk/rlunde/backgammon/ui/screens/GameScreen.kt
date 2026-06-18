@@ -45,18 +45,32 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
     // panel text reads white instead of falling back to black-on-dark.
     Surface(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().systemBarsPadding().padding(8.dp)) {
-            // Board fills ~80% of the width; checker size is capped by point height so it never overflows.
-            BoardCanvas(
-                state = state,
-                onTap = vm::onTap,
-                modifier = Modifier.weight(0.8f).fillMaxHeight(),
-            )
+            // Board fills most of the width; checker size is capped by point height so it never overflows.
+            // Tapping the cube offers a double; a take/drop prompt overlays the board when one is pending.
+            Box(Modifier.weight(0.78f).fillMaxHeight()) {
+                BoardCanvas(
+                    state = state,
+                    onTap = vm::onTap,
+                    modifier = Modifier.fillMaxSize(),
+                    onCubeTap = { if (state.canDouble) vm.onOfferDouble() },
+                )
+                if (state.phase == Phase.CUBE_OFFERED) {
+                    val responder = if (state.toMove == Player.WHITE) "BLACK" else "WHITE"
+                    CubePrompt(
+                        responder = responder,
+                        toValue = state.cube.value * 2,
+                        onTake = { vm.onRespondDouble(CubeResponse.TAKE) },
+                        onDrop = { vm.onRespondDouble(CubeResponse.DROP) },
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+            }
 
             Spacer(Modifier.width(12.dp))
 
             TrackingPanel(
                 state = state,
-                modifier = Modifier.weight(0.2f).fillMaxHeight(),
+                modifier = Modifier.weight(0.22f).fillMaxHeight(),
                 isAiTurn = isAiTurn,
                 onRoll = vm::onRoll,
                 onUndo = vm::onUndo,
@@ -64,8 +78,6 @@ fun GameScreen(vm: GameViewModel = viewModel(), onNewGame: () -> Unit = {}) {
                 onNewGame = onNewGame,
                 onAnalyse = vm::onAnalyse,
                 onBandClick = { showSheet = true },
-                onOfferDouble = vm::onOfferDouble,
-                onRespondDouble = vm::onRespondDouble,
                 onResign = { showResign = true },
             )
         }
@@ -208,6 +220,29 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
     }
 }
 
+/** Overlaid on the board when a double is pending: take continues at [toValue], drop ends the game. */
+@Composable
+private fun CubePrompt(
+    responder: String,
+    toValue: Int,
+    onTake: () -> Unit,
+    onDrop: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier) {
+        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Double to $toValue", style = MaterialTheme.typography.titleMedium)
+            Text("$responder: take or drop?", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(12.dp))
+            Row {
+                Button(onClick = onTake) { Text("Take") }
+                Spacer(Modifier.width(12.dp))
+                OutlinedButton(onClick = onDrop) { Text("Drop") }
+            }
+        }
+    }
+}
+
 @Composable
 private fun TrackingPanel(
     state: GameUiState,
@@ -219,8 +254,6 @@ private fun TrackingPanel(
     onNewGame: () -> Unit,
     onAnalyse: () -> Unit,
     onBandClick: () -> Unit,
-    onOfferDouble: () -> Unit = {},
-    onRespondDouble: (CubeResponse) -> Unit = {},
     onResign: () -> Unit = {},
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -233,11 +266,9 @@ private fun TrackingPanel(
 
         Spacer(Modifier.height(12.dp))
 
-        // Live race metrics (computed from the partial board, so they update as moves are staged).
-        Text("Pips:  W ${state.whitePip}  B ${state.blackPip}", style = MaterialTheme.typography.bodyMedium)
-        Text("Lead:  ${leadText(state.whitePip, state.blackPip)}", style = MaterialTheme.typography.bodyMedium)
+        // Live race metric (updates as moves are staged). Lead is folded into the pip line.
         Text(
-            "Blots:  W ${blots(state.board, Player.WHITE)}  B ${blots(state.board, Player.BLACK)}",
+            "Pips:  W ${state.whitePip}  B ${state.blackPip}   (${leadText(state.whitePip, state.blackPip)})",
             style = MaterialTheme.typography.bodyMedium,
         )
 
@@ -295,20 +326,14 @@ private fun TrackingPanel(
         when {
             isAiTurn -> Text("AI thinking…", style = MaterialTheme.typography.titleMedium)
             else -> when (state.phase) {
-                Phase.NEED_ROLL -> {
-                    if (state.canDouble) {
-                        OutlinedButton(onClick = onOfferDouble, modifier = Modifier.fillMaxWidth()) { Text("Double") }
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    Button(
-                        onClick = onRoll,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFC62828),
-                            contentColor = Color.White,
-                        ),
-                    ) { Text("Roll") }
-                }
+                Phase.NEED_ROLL -> Button(
+                    onClick = onRoll,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFC62828),
+                        contentColor = Color.White,
+                    ),
+                ) { Text("Roll") }
                 Phase.MOVING -> {
                     // Analyse button: enabled when training is on, it's the human's turn, and dice are available
                     val canAnalyse = state.training && state.aiSide != null && state.toMove != state.aiSide && state.dice != null
@@ -323,21 +348,14 @@ private fun TrackingPanel(
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo") }
                 }
-                Phase.CUBE_OFFERED -> {
-                    val responder = if (state.toMove == Player.WHITE) "BLACK" else "WHITE"
-                    Text("$responder — take or drop?", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = { onRespondDouble(CubeResponse.TAKE) }, modifier = Modifier.fillMaxWidth()) { Text("Take") }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { onRespondDouble(CubeResponse.DROP) }, modifier = Modifier.fillMaxWidth()) { Text("Drop") }
-                }
+                Phase.CUBE_OFFERED ->
+                    Text("Respond on the board", style = MaterialTheme.typography.bodyMedium)
                 Phase.GAME_OVER -> Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) { Text("New game") }
             }
         }
-        // Resign is available during play (not while the AI is thinking, mid-cube-decision, or game over).
+        // Resign: a small text link during play, so it doesn't compete with the primary controls.
         if (!isAiTurn && (state.phase == Phase.NEED_ROLL || state.phase == Phase.MOVING || state.phase == Phase.COMMITTABLE)) {
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onResign, modifier = Modifier.fillMaxWidth()) { Text("Resign") }
+            TextButton(onClick = onResign) { Text("Resign", style = MaterialTheme.typography.labelMedium) }
         }
     }
 }
@@ -359,10 +377,6 @@ private fun leadText(whitePip: Int, blackPip: Int): String = when {
     blackPip < whitePip -> "Black +${whitePip - blackPip}"
     else -> "even"
 }
-
-/** Number of points where [player] has a lone (hittable) checker. */
-private fun blots(board: BoardState, player: Player): Int =
-    (1..24).count { board.count(player, it) == 1 }
 
 /** "13 → 10", "bar → 22", "3 → off" (with a * suffix on a hit). */
 private fun formatMove(sm: SubMove): String {
