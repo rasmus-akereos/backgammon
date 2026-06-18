@@ -4,17 +4,32 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.pointer.pointerInput
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.game.CubeState
 import dk.rlunde.backgammon.game.GameUiState
+
+private val feltBrush = Brush.radialGradient(
+    listOf(BoardColors.feltCenter, BoardColors.feltEdge))
+private val pointLightBrush = Brush.verticalGradient(
+    listOf(BoardColors.pointLightTop, BoardColors.pointLightBase))
+private val pointDarkBrush = Brush.verticalGradient(
+    listOf(BoardColors.pointDarkTop, BoardColors.pointDarkBase))
+private val cubePaint = android.graphics.Paint().apply {
+    color = android.graphics.Color.BLACK
+    textAlign = android.graphics.Paint.Align.CENTER
+    isAntiAlias = true
+}
 
 @Composable
 fun BoardCanvas(
@@ -42,11 +57,10 @@ fun BoardCanvas(
 }
 
 private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
-    drawRect(BoardColors.felt)
+    drawRect(feltBrush)
     for (i in 1..24) {
         val r = g.pointRect(i)
-        val light = (i % 2 == 0)
-        drawTriangle(r, if (light) BoardColors.pointLight else BoardColors.pointDark, pointingUp = i in 1..12)
+        drawTriangle(r, if (i % 2 == 0) pointLightBrush else pointDarkBrush, pointingUp = i in 1..12)
     }
     val bar = g.barRect()
     drawRect(BoardColors.bar, topLeft = Offset(bar.l, bar.t), size = Size(bar.r - bar.l, bar.b - bar.t))
@@ -69,48 +83,76 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     // Doubling cube: a square in the tray column showing the face value. Shown in both modes
     // (read-only vs computer in 6b-i); highlighted when the player on roll may double (tap to offer).
     drawCube(g, state.cube, highlight = state.canDouble)
+    drawFrame()
     // Dice are rendered in the side panel (see GameScreen), not on the board.
 }
 
 private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState, highlight: Boolean) {
     val r = g.cubeRect(cube.owner)
-    drawRect(BoardColors.whiteChecker, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
+    val tl = Offset(r.l, r.t)
+    val sz = Size(r.r - r.l, r.b - r.t)
+    // Soft drop shadow.
+    drawRect(BoardColors.checkerShadow, topLeft = Offset(r.l + sz.width * 0.06f, r.t + sz.height * 0.08f), size = sz)
+    // Cream face + a subtle top highlight band (cheap bevel).
+    drawRect(BoardColors.whiteChecker, topLeft = tl, size = sz)
+    drawRect(BoardColors.whiteHighlight, topLeft = tl, size = Size(sz.width, sz.height * 0.4f))
+    // Border: gold when the player on roll may double, else neutral.
     val border = if (highlight) BoardColors.highlight else BoardColors.bar
-    drawRect(border, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t),
-        style = Stroke(width = (r.r - r.l) * (if (highlight) 0.12f else 0.06f)))
-    val paint = android.graphics.Paint().apply {
-        color = android.graphics.Color.BLACK
-        textAlign = android.graphics.Paint.Align.CENTER
-        textSize = (r.b - r.t) * 0.55f
-        isAntiAlias = true
-    }
-    // Vertically centre the text baseline within the square.
-    drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + paint.textSize * 0.35f, paint)
+    drawRect(border, topLeft = tl, size = sz,
+        style = Stroke(width = sz.width * (if (highlight) 0.12f else 0.06f)))
+    // Value label (hoisted paint; text size set per draw — a field write, not an allocation).
+    cubePaint.textSize = sz.height * 0.55f
+    drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + cubePaint.textSize * 0.35f, cubePaint)
 }
 
-private fun DrawScope.drawTriangle(r: BoardRect, color: Color, pointingUp: Boolean) {
+private fun DrawScope.drawTriangle(r: BoardRect, brush: Brush, pointingUp: Boolean) {
     val path = Path().apply {
         if (pointingUp) { moveTo(r.l, r.b); lineTo(r.r, r.b); lineTo((r.l + r.r) / 2, r.t) }
         else { moveTo(r.l, r.t); lineTo(r.r, r.t); lineTo((r.l + r.r) / 2, r.b) }
         close()
     }
-    drawPath(path, color)
+    drawPath(path, brush)
+}
+
+private fun DrawScope.drawFrame() {
+    val frameW = minOf(size.width, size.height) * 0.025f
+    drawRect(BoardColors.frameDark, topLeft = Offset(frameW / 2f, frameW / 2f),
+        size = Size(size.width - frameW, size.height - frameW), style = Stroke(width = frameW))
+    val inset = frameW
+    drawRect(BoardColors.pinstripe, topLeft = Offset(inset, inset),
+        size = Size(size.width - 2 * inset, size.height - 2 * inset), style = Stroke(width = frameW * 0.14f))
 }
 
 private const val MAX_STACK_SHOWN = 5
 
 private fun DrawScope.drawStack(r: BoardRect, n: Int, player: Player, fromBottom: Boolean) {
-    // Cap by column width AND point height so up to MAX_STACK_SHOWN checkers always fit the point.
     val byWidth = (r.r - r.l) / 2f * 0.9f
     val byHeight = (r.b - r.t) / (2f * MAX_STACK_SHOWN) * 0.98f
     val radius = minOf(byWidth, byHeight)
-    val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
-    val ring = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
     val shown = minOf(n, MAX_STACK_SHOWN)
     for (k in 0 until shown) {
         val cy = if (fromBottom) r.b - radius - k * radius * 2 else r.t + radius + k * radius * 2
-        drawCircle(ring, radius, Offset(r.cx, cy))
-        drawCircle(color, radius * 0.82f, Offset(r.cx, cy))
+        drawChecker(Offset(r.cx, cy), radius, player)
+    }
+}
+
+private fun DrawScope.drawChecker(center: Offset, radius: Float, player: Player) {
+    val face = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
+    val ring = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
+    val highlight = if (player == Player.WHITE) BoardColors.whiteHighlight else BoardColors.blackHighlight
+    val groove = if (player == Player.WHITE) BoardColors.whiteGroove else BoardColors.blackGroove
+    val rim = if (player == Player.WHITE) BoardColors.whiteRim else BoardColors.blackRim
+    // Soft drop shadow (offset translucent circle — no blur).
+    drawCircle(BoardColors.checkerShadow, radius, center + Offset(radius * 0.10f, radius * 0.14f))
+    // Outer ring (keeps black checkers legible on dark felt) + face.
+    drawCircle(ring, radius, center)
+    drawCircle(face, radius * 0.92f, center)
+    // Glossy highlight spot, up-left.
+    drawCircle(highlight, radius * 0.42f, center + Offset(-radius * 0.28f, -radius * 0.30f))
+    // Ridge — only when the checker is large enough to read it.
+    if (radius >= 18.dp.toPx()) {
+        drawCircle(groove, radius * 0.86f, center, style = Stroke(width = radius * 0.08f))
+        drawCircle(rim, radius * 0.74f, center, style = Stroke(width = radius * 0.06f))
     }
 }
 
@@ -119,8 +161,7 @@ private fun DrawScope.drawBarCheckers(g: BoardGeometry, n: Int, player: Player) 
     val bar = g.barRect()
     val radius = (bar.r - bar.l) / 2f * 0.8f
     val baseY = if (player == Player.WHITE) bar.b - radius - bar.b * 0.1f else bar.t + radius + bar.b * 0.1f
-    val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
-    drawCircle(color, radius, Offset(bar.cx, baseY))
+    drawChecker(Offset(bar.cx, baseY), radius, player)
 }
 
 private fun DrawScope.drawTray(r: BoardRect, n: Int, player: Player) {
@@ -140,5 +181,10 @@ private fun DrawScope.highlightTarget(g: BoardGeometry, t: BoardTarget) {
         is BoardTarget.BearOff -> g.bearOffRect(t.player)
         BoardTarget.Dice -> g.diceRect()
     }
-    drawRect(BoardColors.highlight.copy(alpha = 0.35f), topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
+    drawRoundRect(
+        BoardColors.highlight.copy(alpha = 0.35f),
+        topLeft = Offset(r.l, r.t),
+        size = Size(r.r - r.l, r.b - r.t),
+        cornerRadius = CornerRadius((r.r - r.l) * 0.18f),
+    )
 }
