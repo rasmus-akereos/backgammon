@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -15,6 +16,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.game.CubeState
 import dk.rlunde.backgammon.game.GameUiState
+
+private val feltBrush = Brush.radialGradient(
+    listOf(BoardColors.feltCenter, BoardColors.feltEdge))
+private val pointLightBrush = Brush.verticalGradient(
+    listOf(BoardColors.pointLightTop, BoardColors.pointLightBase))
+private val pointDarkBrush = Brush.verticalGradient(
+    listOf(BoardColors.pointDarkTop, BoardColors.pointDarkBase))
 
 @Composable
 fun BoardCanvas(
@@ -42,11 +50,10 @@ fun BoardCanvas(
 }
 
 private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
-    drawRect(BoardColors.felt)
+    drawRect(feltBrush)
     for (i in 1..24) {
         val r = g.pointRect(i)
-        val light = (i % 2 == 0)
-        drawTriangle(r, if (light) BoardColors.pointLight else BoardColors.pointDark, pointingUp = i in 1..12)
+        drawTriangle(r, if (i % 2 == 0) pointLightBrush else pointDarkBrush, pointingUp = i in 1..12)
     }
     val bar = g.barRect()
     drawRect(BoardColors.bar, topLeft = Offset(bar.l, bar.t), size = Size(bar.r - bar.l, bar.b - bar.t))
@@ -69,6 +76,7 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
     // Doubling cube: a square in the tray column showing the face value. Shown in both modes
     // (read-only vs computer in 6b-i); highlighted when the player on roll may double (tap to offer).
     drawCube(g, state.cube, highlight = state.canDouble)
+    drawFrame()
     // Dice are rendered in the side panel (see GameScreen), not on the board.
 }
 
@@ -88,13 +96,22 @@ private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState, highlight: Boo
     drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + paint.textSize * 0.35f, paint)
 }
 
-private fun DrawScope.drawTriangle(r: BoardRect, color: Color, pointingUp: Boolean) {
+private fun DrawScope.drawTriangle(r: BoardRect, brush: Brush, pointingUp: Boolean) {
     val path = Path().apply {
         if (pointingUp) { moveTo(r.l, r.b); lineTo(r.r, r.b); lineTo((r.l + r.r) / 2, r.t) }
         else { moveTo(r.l, r.t); lineTo(r.r, r.t); lineTo((r.l + r.r) / 2, r.b) }
         close()
     }
-    drawPath(path, color)
+    drawPath(path, brush)
+}
+
+private fun DrawScope.drawFrame() {
+    val frameW = minOf(size.width, size.height) * 0.025f
+    drawRect(BoardColors.frameDark, topLeft = Offset(frameW / 2f, frameW / 2f),
+        size = Size(size.width - frameW, size.height - frameW), style = Stroke(width = frameW))
+    val inset = frameW
+    drawRect(BoardColors.pinstripe, topLeft = Offset(inset, inset),
+        size = Size(size.width - 2 * inset, size.height - 2 * inset), style = Stroke(width = frameW * 0.14f))
 }
 
 private const val MAX_STACK_SHOWN = 5
