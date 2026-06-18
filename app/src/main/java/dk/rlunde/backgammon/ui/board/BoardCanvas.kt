@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.pointer.pointerInput
 import dk.rlunde.backgammon.core.Player
 import dk.rlunde.backgammon.game.CubeState
@@ -117,17 +118,33 @@ private fun DrawScope.drawFrame() {
 private const val MAX_STACK_SHOWN = 5
 
 private fun DrawScope.drawStack(r: BoardRect, n: Int, player: Player, fromBottom: Boolean) {
-    // Cap by column width AND point height so up to MAX_STACK_SHOWN checkers always fit the point.
     val byWidth = (r.r - r.l) / 2f * 0.9f
     val byHeight = (r.b - r.t) / (2f * MAX_STACK_SHOWN) * 0.98f
     val radius = minOf(byWidth, byHeight)
-    val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
-    val ring = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
     val shown = minOf(n, MAX_STACK_SHOWN)
     for (k in 0 until shown) {
         val cy = if (fromBottom) r.b - radius - k * radius * 2 else r.t + radius + k * radius * 2
-        drawCircle(ring, radius, Offset(r.cx, cy))
-        drawCircle(color, radius * 0.82f, Offset(r.cx, cy))
+        drawChecker(Offset(r.cx, cy), radius, player)
+    }
+}
+
+private fun DrawScope.drawChecker(center: Offset, radius: Float, player: Player) {
+    val face = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
+    val ring = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
+    val highlight = if (player == Player.WHITE) BoardColors.whiteHighlight else BoardColors.blackHighlight
+    val groove = if (player == Player.WHITE) BoardColors.whiteGroove else BoardColors.blackGroove
+    val rim = if (player == Player.WHITE) BoardColors.whiteRim else BoardColors.blackRim
+    // Soft drop shadow (offset translucent circle — no blur).
+    drawCircle(BoardColors.checkerShadow, radius, center + Offset(radius * 0.10f, radius * 0.14f))
+    // Outer ring (keeps black checkers legible on dark felt) + face.
+    drawCircle(ring, radius, center)
+    drawCircle(face, radius * 0.92f, center)
+    // Glossy highlight spot, up-left.
+    drawCircle(highlight, radius * 0.42f, center + Offset(-radius * 0.28f, -radius * 0.30f))
+    // Ridge — only when the checker is large enough to read it.
+    if (radius >= 18.dp.toPx()) {
+        drawCircle(groove, radius * 0.86f, center, style = Stroke(width = radius * 0.08f))
+        drawCircle(rim, radius * 0.74f, center, style = Stroke(width = radius * 0.06f))
     }
 }
 
@@ -136,8 +153,7 @@ private fun DrawScope.drawBarCheckers(g: BoardGeometry, n: Int, player: Player) 
     val bar = g.barRect()
     val radius = (bar.r - bar.l) / 2f * 0.8f
     val baseY = if (player == Player.WHITE) bar.b - radius - bar.b * 0.1f else bar.t + radius + bar.b * 0.1f
-    val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
-    drawCircle(color, radius, Offset(bar.cx, baseY))
+    drawChecker(Offset(bar.cx, baseY), radius, player)
 }
 
 private fun DrawScope.drawTray(r: BoardRect, n: Int, player: Player) {
