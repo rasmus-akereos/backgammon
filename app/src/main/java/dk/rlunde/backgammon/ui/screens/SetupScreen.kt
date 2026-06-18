@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dk.rlunde.backgammon.ai.Difficulty
 import dk.rlunde.backgammon.core.Player
@@ -59,9 +58,6 @@ fun SetupScreen(onStart: (GameConfig) -> Unit) {
             Button(
                 onClick = { onStart(GameConfig(difficulty, colorChoice, opponent, training)) },
                 modifier = Modifier.fillMaxWidth(0.5f).height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFC62828), contentColor = Color.White,
-                ),
             ) {
                 Text("Start game", style = MaterialTheme.typography.titleMedium)
             }
