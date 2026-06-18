@@ -80,7 +80,7 @@ class GameViewModel internal constructor(
         val humanColor = config.humanColor ?: if (rng.nextBoolean()) Player.WHITE else Player.BLACK
         aiSide = if (config.opponent == Opponent.COMPUTER) humanColor.opponent else null
         aiPlayer = aiSide?.let { HeuristicAiPlayer(config.difficulty) }
-        driver = aiSide?.let { AiTurnDriver(it, aiPlayer) }
+        driver = aiSide?.let { AiTurnDriver(it, aiPlayer, dispatcher = analysisDispatcher) }
         training = config.training && config.opponent == Opponent.COMPUTER
         controller = controllerFactory(aiSide)
         publish()
@@ -99,7 +99,7 @@ class GameViewModel internal constructor(
     fun onAcknowledgePass() { controller.acknowledgePass(); publish(); maybeRunAi() }
 
     fun onOfferDouble() { controller.offerDouble(); publish() }
-    fun onRespondDouble(response: CubeResponse) { controller.respondDouble(response); publish() }
+    fun onRespondDouble(response: CubeResponse) { controller.respondDouble(response); publish(); maybeRunAi() }
     fun onResign(loser: Player) { controller.resign(loser); publish() }
 
     fun onNewGame() {

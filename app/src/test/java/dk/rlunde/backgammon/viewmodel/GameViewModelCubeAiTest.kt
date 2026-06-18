@@ -16,7 +16,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameViewModelCubeAiTest {
@@ -53,7 +53,11 @@ class GameViewModelCubeAiTest {
         v.onRespondDouble(CubeResponse.TAKE)
         assertEquals(2, v.uiState.value.cube.value)
         assertEquals(Player.WHITE, v.uiState.value.cube.owner)
-        advanceUntilIdle()
-        assertNotEquals(Phase.CUBE_OFFERED, v.uiState.value.phase)
+        advanceUntilIdle()                      // AI resumes its turn (rolls + plays)
+        val s = v.uiState.value
+        assertTrue(
+            s.phase == Phase.GAME_OVER || (s.phase == Phase.NEED_ROLL && s.toMove == Player.WHITE),
+            "after taking, the AI should resume and play, handing back to the human (or end the game); was ${s.phase}/${s.toMove}",
+        )
     }
 }
