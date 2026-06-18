@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -180,5 +181,10 @@ private fun DrawScope.highlightTarget(g: BoardGeometry, t: BoardTarget) {
         is BoardTarget.BearOff -> g.bearOffRect(t.player)
         BoardTarget.Dice -> g.diceRect()
     }
-    drawRect(BoardColors.highlight.copy(alpha = 0.35f), topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
+    drawRoundRect(
+        BoardColors.highlight.copy(alpha = 0.35f),
+        topLeft = Offset(r.l, r.t),
+        size = Size(r.r - r.l, r.b - r.t),
+        cornerRadius = CornerRadius((r.r - r.l) * 0.18f),
+    )
 }
