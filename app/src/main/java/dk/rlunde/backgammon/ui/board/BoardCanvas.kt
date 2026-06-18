@@ -24,6 +24,11 @@ private val pointLightBrush = Brush.verticalGradient(
     listOf(BoardColors.pointLightTop, BoardColors.pointLightBase))
 private val pointDarkBrush = Brush.verticalGradient(
     listOf(BoardColors.pointDarkTop, BoardColors.pointDarkBase))
+private val cubePaint = android.graphics.Paint().apply {
+    color = android.graphics.Color.BLACK
+    textAlign = android.graphics.Paint.Align.CENTER
+    isAntiAlias = true
+}
 
 @Composable
 fun BoardCanvas(
@@ -83,18 +88,20 @@ private fun DrawScope.drawBoard(g: BoardGeometry, state: GameUiState) {
 
 private fun DrawScope.drawCube(g: BoardGeometry, cube: CubeState, highlight: Boolean) {
     val r = g.cubeRect(cube.owner)
-    drawRect(BoardColors.whiteChecker, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t))
+    val tl = Offset(r.l, r.t)
+    val sz = Size(r.r - r.l, r.b - r.t)
+    // Soft drop shadow.
+    drawRect(BoardColors.checkerShadow, topLeft = Offset(r.l + sz.width * 0.06f, r.t + sz.height * 0.08f), size = sz)
+    // Cream face + a subtle top highlight band (cheap bevel).
+    drawRect(BoardColors.whiteChecker, topLeft = tl, size = sz)
+    drawRect(BoardColors.whiteHighlight, topLeft = tl, size = Size(sz.width, sz.height * 0.4f))
+    // Border: gold when the player on roll may double, else neutral.
     val border = if (highlight) BoardColors.highlight else BoardColors.bar
-    drawRect(border, topLeft = Offset(r.l, r.t), size = Size(r.r - r.l, r.b - r.t),
-        style = Stroke(width = (r.r - r.l) * (if (highlight) 0.12f else 0.06f)))
-    val paint = android.graphics.Paint().apply {
-        color = android.graphics.Color.BLACK
-        textAlign = android.graphics.Paint.Align.CENTER
-        textSize = (r.b - r.t) * 0.55f
-        isAntiAlias = true
-    }
-    // Vertically centre the text baseline within the square.
-    drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + paint.textSize * 0.35f, paint)
+    drawRect(border, topLeft = tl, size = sz,
+        style = Stroke(width = sz.width * (if (highlight) 0.12f else 0.06f)))
+    // Value label (hoisted paint; text size set per draw — a field write, not an allocation).
+    cubePaint.textSize = sz.height * 0.55f
+    drawContext.canvas.nativeCanvas.drawText(cube.value.toString(), r.cx, r.cy + cubePaint.textSize * 0.35f, cubePaint)
 }
 
 private fun DrawScope.drawTriangle(r: BoardRect, brush: Brush, pointingUp: Boolean) {
