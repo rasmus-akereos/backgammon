@@ -50,9 +50,8 @@ class GameController(
         uiState = compute()
     }
 
-    /** Offer a double before rolling. Hot-seat only in 6b-i; no-op otherwise. */
+    /** Offer a double before rolling. Gating (whose turn it is) is the caller's responsibility. */
     fun offerDouble() {
-        if (aiSide != null) return                       // cube inactive vs computer (6b-i)
         if (uiState.phase != Phase.NEED_ROLL) return
         if (!cube.mayDouble(committed.toMove)) return
         doubler = committed.toMove
