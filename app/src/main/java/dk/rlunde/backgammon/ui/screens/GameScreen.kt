@@ -260,29 +260,37 @@ private fun TrackingPanel(
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         // --- Stats (top) -----------------------------------------------------------------
         val turnLabel = if (state.toMove == Player.WHITE) "WHITE to move" else "BLACK to move"
-        Text(
-            text = if (state.phase == Phase.GAME_OVER) "Game over" else turnLabel,
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    text = if (state.phase == Phase.GAME_OVER) "Game over" else turnLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                )
 
-        Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(12.dp))
 
-        // Live race metric (updates as moves are staged). Lead is folded into the pip line.
-        Text(
-            "Pips:  W ${state.whitePip}  B ${state.blackPip}   (${leadText(state.whitePip, state.blackPip)})",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+                // Live race metric (updates as moves are staged). Lead is folded into the pip line.
+                Text(
+                    "Pips:  W ${state.whitePip}  B ${state.blackPip}   (${leadText(state.whitePip, state.blackPip)})",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-        // Move tracker: the sub-moves staged so far this turn.
-        Text("This turn", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        if (state.stagedMoves.isEmpty()) {
-            Text("—", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            state.stagedMoves.forEach { sm ->
-                Text(formatMove(sm), style = MaterialTheme.typography.bodyMedium)
+                // Move tracker: the sub-moves staged so far this turn.
+                Text("This turn", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                if (state.stagedMoves.isEmpty()) {
+                    Text("—", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    state.stagedMoves.forEach { sm ->
+                        Text(formatMove(sm), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
         }
 
@@ -327,14 +335,7 @@ private fun TrackingPanel(
         when {
             isAiTurn -> Text("AI thinking…", style = MaterialTheme.typography.titleMedium)
             else -> when (state.phase) {
-                Phase.NEED_ROLL -> Button(
-                    onClick = onRoll,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFC62828),
-                        contentColor = Color.White,
-                    ),
-                ) { Text("Roll") }
+                Phase.NEED_ROLL -> Button(onClick = onRoll, modifier = Modifier.fillMaxWidth()) { Text("Roll") }
                 Phase.MOVING -> {
                     // Analyse button: enabled when training is on, it's the human's turn, and dice are available
                     val canAnalyse = state.training && state.aiSide != null && state.toMove != state.aiSide && state.dice != null
