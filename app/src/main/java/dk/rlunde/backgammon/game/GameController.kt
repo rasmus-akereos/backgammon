@@ -4,7 +4,7 @@ import dk.rlunde.backgammon.core.*
 import dk.rlunde.backgammon.ui.board.BoardTarget
 
 /**
- * Pure (no Android) turn state machine for hot-seat play. Holds the committed board, the current
+ * Pure (no Android) turn state machine for both hot-seat and vs-computer play. Holds the committed board, the current
  * dice, the staged sub-moves, and the selected origin; recomputes [uiState] after every action.
  * Rules are delegated to :core (MoveGenerator / TurnPlanner / Scoring).
  */
