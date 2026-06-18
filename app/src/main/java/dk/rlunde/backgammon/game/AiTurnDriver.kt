@@ -36,10 +36,13 @@ class AiTurnDriver(
         if (controller.uiState.phase == Phase.CUBE_OFFERED) return  // a double is pending — not our action
 
         // Pre-roll: offer a double when clearly ahead and the cube is available.
-        if (controller.uiState.cube.mayDouble(aiSide) &&
-            CubePolicy.shouldDouble(CubeAdvisor.winProb(controller.uiState.board, aiSide))) {
-            controller.offerDouble(); publish()
-            return
+        // Eval runs off-thread on [dispatcher], consistent with the move-choice path below.
+        if (controller.uiState.cube.mayDouble(aiSide)) {
+            val winProb = withContext(dispatcher) { CubeAdvisor.winProb(controller.uiState.board, aiSide) }
+            if (CubePolicy.shouldDouble(winProb)) {
+                controller.offerDouble(); publish()
+                return
+            }
         }
 
         running = true
