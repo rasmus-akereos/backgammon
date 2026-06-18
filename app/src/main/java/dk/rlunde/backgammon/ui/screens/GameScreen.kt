@@ -22,6 +22,7 @@ import dk.rlunde.backgammon.game.Phase
 import dk.rlunde.backgammon.game.UiEvent
 import dk.rlunde.backgammon.ui.board.BoardCanvas
 import dk.rlunde.backgammon.ui.board.DiceRow
+import dk.rlunde.backgammon.ui.theme.AppColors
 import dk.rlunde.backgammon.viewmodel.GameViewModel
 
 @Composable
@@ -301,7 +302,7 @@ private fun TrackingPanel(
             val (bandLabel, bandColor) = bandDisplay(state.analysis)
             Surface(
                 shape = MaterialTheme.shapes.small,
-                color = bandColor.copy(alpha = 0.15f),
+                color = bandColor.copy(alpha = 0.22f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onBandClick),
@@ -362,14 +363,24 @@ private fun TrackingPanel(
 
 /** Returns label + color for the given analysis, taking forced flag into account. */
 private fun bandDisplay(analysis: MoveAnalysis): Pair<String, Color> =
-    if (analysis.forced) "Forced" to Color(0xFF9E9E9E)
-    else when (analysis.band) {
-        Band.BEST -> "Best" to Color(0xFF2E7D32)
-        Band.GOOD -> "Good" to Color(0xFF9CCC65)
-        Band.INACCURACY -> "Inaccuracy" to Color(0xFFFFB300)
-        Band.MISTAKE -> "Mistake" to Color(0xFFF57C00)
-        Band.BLUNDER -> "Blunder" to Color(0xFFC62828)
-    }
+    if (analysis.forced) "Forced" to AppColors.bandForced
+    else bandLabel(analysis.band) to bandColor(analysis.band)
+
+internal fun bandLabel(band: Band): String = when (band) {
+    Band.BEST -> "Best"
+    Band.GOOD -> "Good"
+    Band.INACCURACY -> "Inaccuracy"
+    Band.MISTAKE -> "Mistake"
+    Band.BLUNDER -> "Blunder"
+}
+
+internal fun bandColor(band: Band): Color = when (band) {
+    Band.BEST -> AppColors.bandBest
+    Band.GOOD -> AppColors.bandGood
+    Band.INACCURACY -> AppColors.bandInaccuracy
+    Band.MISTAKE -> AppColors.bandMistake
+    Band.BLUNDER -> AppColors.bandBlunder
+}
 
 /** Lower pip count is ahead; show who leads and by how much. */
 private fun leadText(whitePip: Int, blackPip: Int): String = when {
