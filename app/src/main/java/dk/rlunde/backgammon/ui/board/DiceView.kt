@@ -58,14 +58,18 @@ private val diceShadowColor = Color(0x4D000000)
 /** A single die face: rounded shaded tile + canonical pips. A consumed die is dimmed via alpha. */
 private fun DrawScope.drawDieFace(side: Float, face: Int, used: Boolean) {
     val a = if (used) 0.4f else 1f
-    val corner = CornerRadius(side * 0.18f, side * 0.18f)
-    // Simple offset shadow (no blur, no native Paint).
-    drawRoundRect(color = diceShadowColor, topLeft = Offset(side * 0.05f, side * 0.07f),
-        size = Size(side, side), cornerRadius = corner, alpha = a)
-    drawRoundRect(brush = diceFaceBrush, topLeft = Offset.Zero, size = Size(side, side),
+    // Inset the face so the offset drop shadow stays inside the tile (otherwise it clips and reads flat).
+    val pad = side * 0.07f
+    val faceSide = side - pad
+    val corner = CornerRadius(faceSide * 0.18f, faceSide * 0.18f)
+    // Drop shadow, offset down-right within the tile.
+    drawRoundRect(color = diceShadowColor, topLeft = Offset(pad, pad),
+        size = Size(faceSide, faceSide), cornerRadius = corner, alpha = a)
+    // Face at the top-left.
+    drawRoundRect(brush = diceFaceBrush, topLeft = Offset.Zero, size = Size(faceSide, faceSide),
         cornerRadius = corner, alpha = a)
-    val pipR = side * 0.085f
+    val pipR = faceSide * 0.085f
     pipOffsets(face).forEach { o ->
-        drawCircle(AppColors.dicePip, pipR, Offset(o.x * side, o.y * side), alpha = a)
+        drawCircle(AppColors.dicePip, pipR, Offset(o.x * faceSide, o.y * faceSide), alpha = a)
     }
 }
