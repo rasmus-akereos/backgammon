@@ -35,6 +35,20 @@ private fun DieFace(face: Int, used: Boolean, size: Dp) {
     }
 }
 
+/** Canonical Western die pip positions, as fractions of the face (0..1). Pure — unit-tested. */
+internal fun pipOffsets(face: Int): List<Offset> {
+    val lo = 0.28f; val mid = 0.5f; val hi = 0.72f
+    return when (face) {
+        1 -> listOf(Offset(mid, mid))
+        2 -> listOf(Offset(lo, lo), Offset(hi, hi))
+        3 -> listOf(Offset(lo, lo), Offset(mid, mid), Offset(hi, hi))
+        4 -> listOf(Offset(lo, lo), Offset(hi, lo), Offset(lo, hi), Offset(hi, hi))
+        5 -> listOf(Offset(lo, lo), Offset(hi, lo), Offset(mid, mid), Offset(lo, hi), Offset(hi, hi))
+        6 -> listOf(Offset(lo, lo), Offset(hi, lo), Offset(lo, mid), Offset(hi, mid), Offset(lo, hi), Offset(hi, hi))
+        else -> emptyList()
+    }
+}
+
 /** A single die face: rounded white tile with the standard pip layout. A consumed die is dimmed. */
 fun DrawScope.drawDieFace(left: Float, top: Float, side: Float, face: Int, used: Boolean) {
     val body = if (used) BoardColors.whiteChecker.copy(alpha = 0.4f) else BoardColors.whiteChecker
