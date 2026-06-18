@@ -1,88 +1,95 @@
-# Visual Polish — Refined Navy & Gold (A2): Design Spec
+# Visual Polish A — Theme + Panel + Dice (Refined Navy & Gold): Design Spec
 
 **Status:** Design — ready for plan-writing.
 **Date:** 2026-06-18
-**Scope:** Presentation layer only (`:app` UI). No game logic, no `:core`/`:ai` changes, no public API changes.
-**Related:** Chosen via the brainstorming visual companion (direction A2 "Rich depth" with ridged checkers). Mockups persist in `.superpowers/brainstorm/`.
+**Scope:** Presentation layer only (`:app` UI chrome). No game logic, geometry, `:core`/`:ai`, or board-rendering depth (that's Slice B). No public API changes.
+**Related:** Split from the original visual-polish spec after spec review (direction "Refined Navy & Gold, A2", chosen via the brainstorming visual companion). Board depth → `docs/superpowers/specs/2026-06-18-visual-polish-b-board-depth-design.md`.
 
 ---
 
+## 0. Why two slices
+
+Spec review flagged that the board-depth work (gradient felt, frame, point gradients, beveled+ridged checkers, glossy cube) is six independent visual treatments — the bulk of the effort, the per-density tweak risk, and the Compose draw-loop performance concern. So:
+
+- **Slice A (this spec):** the cohesive **navy/gold Material theme** + side-panel surface + **dice** polish. Flat, low-risk, high-ROI — it removes the "Material purple" look from all chrome (buttons, dialogs, the analysis sheet, the cube prompt) in one pass.
+- **Slice B:** board depth (felt/frame/points/checkers+ridge/cube), with the performance and legibility constraints the review raised.
+
 ## 1. Goal
 
-Make the app look intentionally designed ("professional") by (a) replacing Material's default purple scheme with a cohesive **navy & gold** theme so all chrome matches the board, and (b) giving the board **depth** — gradient felt, a gold-pinstripe frame, beveled/glossy checkers with a real-piece **ridge**, and polished dice/cube. Direction A2 from the design exploration.
-
-**Done looks like:** the board reads as a premium physical set (depth, ridged checkers), and every button/dialog/panel uses the navy/gold palette rather than Material purple — verified by a debug build on device.
+Replace Material's default purple scheme with an intentional **navy & gold** palette so every piece of chrome — buttons, dialogs, the analysis bottom sheet, the cube prompt, the side panel — matches the navy board, and polish the dice. **Done looks like:** no Material-purple surfaces anywhere; the side panel reads as a grouped card; the primary action (Roll) is clearly salient; dice look crisp and shaded — verified by a debug build on device, with all existing unit suites still green.
 
 ## 2. Scope
 
 **In scope** (all `:app`)
-- Custom Material3 dark color scheme (navy surfaces, gold primary, cream on-surface) in `Theme.kt`.
-- Board depth in `BoardCanvas.kt`: gradient felt + vignette, gold-pinstripe frame, gradient points, beveled checkers with ridge + drop shadow, glossy cube and borne-off pieces, softer translucent move highlights.
-- New color stops in `BoardColors.kt`.
-- Rounded, shaded dice in `DiceView.kt`.
-- Minor `GameScreen.kt`: wrap side-panel stats in a subtle surface; Roll uses the themed gold primary (drop the hardcoded `Color(0xFFC62828)`).
+- A custom Material3 dark color scheme in `Theme.kt` (navy surfaces incl. `surfaceContainer*`, gold roles, cream text).
+- Consolidate **all hardcoded UI colors** into one palette object and bring them into the scheme: the Roll button red and the five `bandDisplay` quality colors.
+- A brighter, distinct **primary gold** so the Roll/Take buttons stay salient against the board's accent gold.
+- Side panel (`GameScreen`): wrap the stats block in a themed surface; buttons inherit the scheme.
+- Dice (`DiceView`): rounded, subtly shaded faces with a soft (allocation-free) shadow and canonical pip layouts, using a dedicated dice color and **hoisted** brushes.
 
 **Out of scope**
-- ❌ Animations / transitions (checker tweening, dice-roll animation), sound.
-- ❌ A custom bundled font (system font + refined scale for now; a display font is an easy follow-up).
-- ❌ Layout restructuring beyond the panel surface (the 6b-i declutter stands).
-- ❌ Any game-logic, geometry (`BoardGeometry`), or `:core`/`:ai` change.
+- ❌ Board depth — felt gradient/vignette, frame/pinstripe, point gradients, checker bevel/ridge/shadow, cube gloss, highlight softening → **Slice B**.
+- ❌ Animations, sound, a custom font file, layout restructuring.
+- ❌ Game logic, `BoardGeometry`, `:core`/`:ai`.
 
-## 3. Decisions (from brainstorming)
+## 3. Decisions (brainstorming + spec review)
 
-- Direction **A2 — Refined Navy & Gold, rich/skeuomorphic depth** (vs A1 clean-flat, B wood, C minimal).
-- Checkers get an **outer ridge** (the stacking lip of a real backgammon checker), rendered as concentric inner rings.
-- **System font** retained (no new font dependency); the win comes from color + depth.
+- Direction **A2 — Refined Navy & Gold**.
+- **System font** retained (no font resource). Headings get `FontWeight.SemiBold` via a small `Typography` override — committed, not "optional"; no letter-spacing change.
+- **Roll/primary uses a brighter gold (`#F0B830`)**, distinct from the board accent gold (`#E0A526`), so the primary action pops.
 
 ## 4. Theme (`ui/theme/Theme.kt`)
 
-Replace `darkColorScheme()` with an explicit scheme so chrome matches the board:
+Define the scheme once as a top-level constant (named parameters on the single `darkColorScheme(...)` call — no `.copy()`), passed by reference:
 
-- `primary` = gold `#E0A526`; `onPrimary` = near-black `#1A1205`.
-- `background`/`surface` = deep navy (`#13233F` / a slightly lifted `#172A48` for surfaces); `onBackground`/`onSurface` = cream `#EEF2F8`.
-- `secondary`/`tertiary` = muted gold/slate as needed for outlined buttons and chips.
-- Keep `darkColorScheme()` as the base and override these roles (so unspecified roles stay sensible).
+```kotlin
+private val BackgammonColors = darkColorScheme(
+    primary = Color(0xFFF0B830), onPrimary = Color(0xFF1A1205),   // bright gold primary action
+    secondary = Color(0xFFC9A227), onSecondary = Color(0xFF1A1205),
+    background = Color(0xFF0F1D33), onBackground = Color(0xFFEEF2F8),
+    surface = Color(0xFF13233F), onSurface = Color(0xFFEEF2F8),
+    surfaceVariant = Color(0xFF1E3258), onSurfaceVariant = Color(0xFFC9D2E0),
+    // dialogs / bottom sheet / cards inherit the navy family, not Material grey:
+    surfaceContainerLowest = Color(0xFF0E1A31), surfaceContainerLow = Color(0xFF152744),
+    surfaceContainer = Color(0xFF1A2C4C), surfaceContainerHigh = Color(0xFF21345A), surfaceContainerHighest = Color(0xFF273B63),
+    outline = Color(0xFF8A93A6),
+)
+```
+`BackgammonTheme` passes `colorScheme = BackgammonColors` plus a `Typography` whose `titleMedium`/`titleLarge`/`labelLarge` use `FontWeight.SemiBold`. The explicit `surfaceContainer*` roles are **required** — the two `AlertDialog`s (pass/resign), the `ModalBottomSheet` analysis sheet, and the `CubePrompt` `Card` derive their container color from them, so omitting them would leave grey/purple surfaces.
 
-Body text keeps the default type scale; headings/labels may get slightly increased weight/letter-spacing via `MaterialTheme.typography` overrides (optional, low-risk). No font resource added.
+## 5. Consolidate hardcoded colors (`ui/screens/GameScreen.kt`)
 
-## 5. Board depth (`ui/board/BoardCanvas.kt`, `BoardColors.kt`)
+Create a small `AppColors` object (in `:app`, e.g. `ui/theme/`) holding the non-Material-role UI colors so none are stranded as inline literals:
 
-`BoardColors` gains the stops these need (felt-center/edge, frame, pinstripe gold, point-gradient pairs, checker-bevel highlight/shadow, ridge groove/rim per colour). Treatments:
-
-1. **Felt** — `Brush.radialGradient` (lighter navy center → darker edge) as the base `drawRect`, plus an inset dark vignette wash.
-2. **Frame** — the board draws within a thick dark border; a thin **gold pinstripe** is a `drawRect`/inset stroke just inside the frame edge.
-3. **Points** — each triangle filled with a vertical `Brush.linearGradient` (cream pair / brown pair) instead of a flat colour.
-4. **Checkers** (`drawStack`, and bar/tray pieces) — per checker:
-   - soft **drop shadow**: a translucent dark circle offset down a couple of px, drawn first;
-   - **face**: `Brush.radialGradient` with an off-centre light highlight (glossy bevel);
-   - **ridge**: two concentric `drawCircle` strokes just inside the rim — an outer dark groove and an inner light rim (bright for white, subtle for black).
-5. **Cube & borne-off** — same radial-bevel + ridge-lite treatment for consistency.
-6. **Move highlights** (`highlightTarget`) — keep gold but as a softer translucent glow (lower alpha / rounded) rather than a flat fill.
-
-Technique note: `DrawScope` has no built-in circle drop-shadow, so shadows are an offset translucent circle and the ridge is concentric stroked circles — all cheap; `drawStack` already layers ring+face, so this extends the existing structure. The `drawCube` added in 6b-i is updated to the same bevel/ridge style.
+- **Move-quality band colors** — `bandDisplay()` currently hardcodes 5 literals (BEST green … BLUNDER `#C62828`). Move them into `AppColors` as `bandBest/bandGood/bandInaccuracy/bandMistake/bandBlunder`, **re-tuned to read on navy** (lighten each hue for dark-surface legibility), and bump the chip container alpha from `0.15f` to `~0.22f` so the dark Blunder/Mistake shades stay visible. Extract a pure `bandColor(band: Band): Color` (unit-tested, §8). The green→red semantic ordering is preserved.
+- **Roll button** — drop the inline `Color(0xFFC62828)`; the Roll button uses the theme `primary` (bright gold). All other buttons inherit the scheme.
 
 ## 6. Dice (`ui/board/DiceView.kt`)
 
-Rounded-rect dice faces with a subtle top-down gradient and a soft drop shadow; pips as filled circles with a faint inset. Match the cream/charcoal of the checkers. (No animation.)
+- A dedicated `AppColors.diceFace` (cream) and `dicePip` (charcoal) — **not** coupled to `BoardColors.whiteChecker` (so Slice B checker changes don't alter dice).
+- Rounded-rect faces with a subtle top-down gradient and a soft drop shadow (an offset translucent circle/rect — **no** `BlurMaskFilter`/native `Paint`). Pips are filled circles in **canonical die layouts** (1 center; 2/3 diagonal; 4/6 corners/columns; 5 corners+center).
+- Any `Brush` is built **once** (top-level `val` or `remember`ed), never inside the per-frame `DrawScope` — `drawDieFace`'s signature is unchanged; the `used`/dimmed state applies `alpha` to the shared brush rather than a separate code path.
 
 ## 7. Side panel (`ui/screens/GameScreen.kt`)
 
-- Wrap the stats block (turn label + pip line + "this turn") in a subtle `Surface`/`Card` using the themed surface colour, for visual grouping.
-- The **Roll** button uses the theme's gold `primary` (remove the hardcoded red `Color(0xFFC62828)`); other buttons inherit the themed scheme. The decluttered control set from 6b-i is unchanged.
+Wrap the stats block (turn label + pip line + "this turn") in a themed `Surface`/`Card` (using `surfaceContainer`) for visual grouping. The decluttered 6b-i control set is unchanged; the **Take** (`CubePrompt`) and **New game** buttons inherit the bright-gold primary; **Drop**/**Undo**/**Analyse** stay `OutlinedButton`s; **Resign** stays the small text link.
 
 ## 8. Testing
 
-Rendering is inherently visual → verified by **debug build + manual playtest** (APK), checking: navy/gold chrome throughout (no purple), gradient felt + gold pinstripe, beveled **ridged** checkers at game scale, glossy cube/dice, themed Roll button. No public API changes, so the existing `:app`/`:core`/`:ai` suites must remain green (regression guard). If any pure color/brush helper is extracted, give it a trivial unit test; otherwise no new unit tests (no testable logic added).
+Chrome theming is visual → verified by **debug build + manual playtest**, plus the regression and pure-logic guards below:
+- **Run all suites** as a done-step: `./gradlew :core:test :ai:test :app:testDebugUnitTest` — all green (no public API change).
+- **Unit test** the extracted `bandColor(band: Band)` mapping (every `Band` → its `AppColors` constant; pure, no Compose render).
+- **Manual checklist** (binary): no Material-purple in any screen (buttons, both AlertDialogs, the analysis bottom sheet, the cube prompt); the stats card reads as grouped navy; the Roll button is clearly the salient action; band chip legible on navy at `0.22f`; dice pips legible with standard layouts; all text legible (cream-on-navy) at normal distance.
 
 ## 9. Files (anticipated)
 
-- `app/.../ui/theme/Theme.kt` — custom color scheme (+ optional type tweaks).
-- `app/.../ui/board/BoardColors.kt` — new gradient/frame/ridge stops.
-- `app/.../ui/board/BoardCanvas.kt` — felt gradient/vignette, frame+pinstripe, point gradients, checker bevel+ridge+shadow, cube/tray bevel, softer highlights.
-- `app/.../ui/board/DiceView.kt` — rounded shaded dice + pips.
-- `app/.../ui/screens/GameScreen.kt` — stats surface; themed Roll button.
+- `app/.../ui/theme/Theme.kt` — `BackgammonColors` scheme + `Typography` override.
+- `app/.../ui/theme/AppColors.kt` — new: band colors + dice colors (the consolidated non-role palette).
+- `app/.../ui/screens/GameScreen.kt` — `bandColor()` extraction + retuned chip alpha; stats surface; Roll button themed.
+- `app/.../ui/board/DiceView.kt` — shaded dice, canonical pips, hoisted brush, dedicated dice colors.
+- `app/src/test/.../BandColorTest.kt` — new unit test.
 
-## 10. Open follow-ups (not in this slice)
+## 10. Follow-ups (later)
 
-- A distinctive display font for headings.
-- Checker-move and dice-roll animations.
+- **Slice B** — board depth.
+- A distinctive display font; animations.
