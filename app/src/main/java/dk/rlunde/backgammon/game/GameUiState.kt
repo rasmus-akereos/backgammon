@@ -64,6 +64,6 @@ data class GameUiState(
      */
     val isAiTurn: Boolean get() = aiSide != null && toMove == aiSide && phase != Phase.GAME_OVER
 
-    /** Hot-seat only in 6b-i: the player on roll may offer a double. */
-    val canDouble: Boolean get() = phase == Phase.NEED_ROLL && cube.mayDouble(toMove) && aiSide == null
+    /** The human on roll may offer a double (both modes). */
+    val canDouble: Boolean get() = phase == Phase.NEED_ROLL && cube.mayDouble(toMove) && toMove != aiSide
 }

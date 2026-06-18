@@ -2,6 +2,8 @@ package dk.rlunde.backgammon.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dk.rlunde.backgammon.ai.CubeAdvisor
+import dk.rlunde.backgammon.ai.CubePolicy
 import dk.rlunde.backgammon.ai.HeuristicAiPlayer
 import dk.rlunde.backgammon.ai.MoveAnalysis
 import dk.rlunde.backgammon.ai.MoveAnalyzer
@@ -14,6 +16,7 @@ import dk.rlunde.backgammon.game.GameConfig
 import dk.rlunde.backgammon.game.GameController
 import dk.rlunde.backgammon.game.GameUiState
 import dk.rlunde.backgammon.game.Opponent
+import dk.rlunde.backgammon.game.Phase
 import dk.rlunde.backgammon.game.UiEvent
 import dk.rlunde.backgammon.ui.board.BoardTarget
 import kotlinx.coroutines.CoroutineDispatcher
@@ -80,7 +83,7 @@ class GameViewModel internal constructor(
         val humanColor = config.humanColor ?: if (rng.nextBoolean()) Player.WHITE else Player.BLACK
         aiSide = if (config.opponent == Opponent.COMPUTER) humanColor.opponent else null
         aiPlayer = aiSide?.let { HeuristicAiPlayer(config.difficulty) }
-        driver = aiSide?.let { AiTurnDriver(it, aiPlayer) }
+        driver = aiSide?.let { AiTurnDriver(it, aiPlayer, dispatcher = analysisDispatcher) }
         training = config.training && config.opponent == Opponent.COMPUTER
         controller = controllerFactory(aiSide)
         publish()
@@ -98,8 +101,20 @@ class GameViewModel internal constructor(
     fun onCommit() { controller.commit(); analyzeLastHumanMove(); publish(); maybeRunAi() }
     fun onAcknowledgePass() { controller.acknowledgePass(); publish(); maybeRunAi() }
 
-    fun onOfferDouble() { controller.offerDouble(); publish() }
-    fun onRespondDouble(response: CubeResponse) { controller.respondDouble(response); publish() }
+    fun onOfferDouble() {
+        controller.offerDouble()
+        publish()
+        // vs-computer: if the human just doubled the AI, the AI takes/drops.
+        val ai = aiSide ?: return
+        if (controller.uiState.phase != Phase.CUBE_OFFERED) return
+        if (controller.uiState.toMove.opponent != ai) return  // responder isn't the AI (e.g. hot-seat)
+        aiJob = scope.launch {
+            val winProb = withContext(analysisDispatcher) { CubeAdvisor.winProb(controller.uiState.board, ai) }
+            controller.respondDouble(if (CubePolicy.shouldTake(winProb)) CubeResponse.TAKE else CubeResponse.DROP)
+            publish()
+        }
+    }
+    fun onRespondDouble(response: CubeResponse) { controller.respondDouble(response); publish(); maybeRunAi() }
     fun onResign(loser: Player) { controller.resign(loser); publish() }
 
     fun onNewGame() {

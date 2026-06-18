@@ -33,8 +33,11 @@ class GameUiStateTest {
         assertEquals(true, state(Phase.NEED_ROLL, Player.WHITE, aiSide = null).canDouble)
     }
 
-    @Test fun `canDouble is false during the AI's game`() {
-        assertEquals(false, state(Phase.NEED_ROLL, Player.WHITE, aiSide = Player.BLACK).canDouble)
+    @Test fun `canDouble is true on the human's turn vs computer`() {
+        assertEquals(true, state(Phase.NEED_ROLL, Player.WHITE, aiSide = Player.BLACK).canDouble)
+    }
+    @Test fun `canDouble is false on the AI's turn`() {
+        assertEquals(false, state(Phase.NEED_ROLL, Player.BLACK, aiSide = Player.BLACK).canDouble)
     }
 
     @Test fun `canDouble is false when not at need-roll`() {

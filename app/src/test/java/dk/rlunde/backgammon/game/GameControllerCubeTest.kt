@@ -31,10 +31,10 @@ class GameControllerCubeTest {
         assertEquals(before, c.uiState.phase)
     }
 
-    @Test fun `offerDouble is a no-op in a vs-computer game`() {
+    @Test fun `offerDouble works regardless of aiSide (gating is the caller's job)`() {
         val c = GameController(initial = startingPosition(), aiSide = Player.BLACK)
         c.offerDouble()
-        assertEquals(Phase.NEED_ROLL, c.uiState.phase)
+        assertEquals(Phase.CUBE_OFFERED, c.uiState.phase)
     }
 
     // --- T4: respondDouble ---------------------------------------------------------------
