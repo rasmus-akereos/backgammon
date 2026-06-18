@@ -24,7 +24,7 @@ class AiTurnDriverTest {
     }
 
     @Test fun `normal turn rolls, applies a move and flips to the human`() = runTest {
-        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val p = IntArray(26); p[13] = 2; p[12] = -2  // balanced (win-prob ~0.5): AI won't pre-roll double
         val c = controller(p, aiSide = Player.WHITE)
         val ai = FakeAi()
         val driver = AiTurnDriver(Player.WHITE, ai, StandardTestDispatcher(testScheduler),
@@ -50,7 +50,7 @@ class AiTurnDriverTest {
     }
 
     @Test fun `does nothing when it is not the AI's turn`() = runTest {
-        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val p = IntArray(26); p[13] = 2; p[12] = -2  // balanced (win-prob ~0.5): AI won't pre-roll double
         val c = controller(p, aiSide = Player.BLACK) // WHITE to move, AI is BLACK
         val ai = FakeAi()
         val driver = AiTurnDriver(Player.BLACK, ai, StandardTestDispatcher(testScheduler), 0, 0)
@@ -61,7 +61,7 @@ class AiTurnDriverTest {
     }
 
     @Test fun `thinking flag is set then always cleared`() = runTest {
-        val p = IntArray(26); p[13] = 2; p[1] = -2
+        val p = IntArray(26); p[13] = 2; p[12] = -2  // balanced (win-prob ~0.5): AI won't pre-roll double
         val c = controller(p, aiSide = Player.WHITE)
         val states = mutableListOf<Boolean>()
         val driver = AiTurnDriver(Player.WHITE, FakeAi(), StandardTestDispatcher(testScheduler), 0, 0)
