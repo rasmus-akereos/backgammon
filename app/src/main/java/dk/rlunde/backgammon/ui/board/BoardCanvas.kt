@@ -167,10 +167,16 @@ private fun DrawScope.drawBarCheckers(g: BoardGeometry, n: Int, player: Player) 
 private fun DrawScope.drawTray(r: BoardRect, n: Int, player: Player) {
     if (n == 0) return
     val color = if (player == Player.WHITE) BoardColors.whiteChecker else BoardColors.blackChecker
+    val rim = if (player == Player.WHITE) BoardColors.whiteRing else BoardColors.blackRing
     val h = (r.b - r.t)
+    val left = r.l + 6f
+    val w = r.r - r.l - 12f
     for (k in 0 until n) {
         val y = r.t + 6f + k * (h / 16f)
-        drawRect(color, topLeft = Offset(r.l + 6f, y), size = Size(r.r - r.l - 12f, h / 18f))
+        val barH = h / 18f
+        // Each borne-off checker shown edge-on: a rim band with the face inset → a beveled disc edge.
+        drawRect(rim, topLeft = Offset(left, y), size = Size(w, barH))
+        drawRect(color, topLeft = Offset(left, y + barH * 0.20f), size = Size(w, barH * 0.60f))
     }
 }
 
