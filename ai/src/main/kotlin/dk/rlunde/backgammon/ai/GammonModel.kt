@@ -13,18 +13,16 @@ internal data class GammonRates(val gammon: Double, val backgammon: Double)
  * Feature-based logistic for gammon/backgammon rates, conditioned on a side losing (spec §4.4).
  * A borne-off checker makes a gammon impossible — hard-gated to 0 rather than trusted to the logistic.
  *
- * Coefficients are deliberately HAND-SET (directionally correct: more back-contact → more bg; a
- * borne-off checker → no gammon). The 2026-06-16 automated fit was degenerate — `pip` is unscaled
- * (~0–167) so its fitted weight saturated the logistic to ≈0 everywhere, and per-ply labels carry
- * weak gammon signal. Rigorous gammon-rate calibration (feature scaling + decisive-position sampling)
- * is deferred; the design (spec §4) only requires trustworthy gammon awareness by slice 6c. Win-prob
- * IS self-play-calibrated (see WinProbability.K).
+ * Coefficients are self-play-calibrated (slice 6c-1): features are standardized via [scaledRow] and
+ * the gammon/bg logistics are fit on decisive-window positions (≥1 borne off, or a no-contact race),
+ * which fixed the 6a degeneracy (unscaled `pip` saturating the logistic + noisy per-ply labels).
  */
 internal object GammonModel {
-    // {intercept, wBorneOff, wPip, wBackContact} on SCALED features (see scaledRow). PROVISIONAL —
-    // replaced by the offline fit in a later 6c-1 task.
-    internal var GAMMON_COEFFS = doubleArrayOf(-1.5, 0.0, 1.2, 0.6)
-    internal var BG_COEFFS = doubleArrayOf(-3.0, 0.0, 1.0, 1.5)
+    // {intercept, wBorneOff, wPip, wBackContact} on SCALED features (see scaledRow). Fitted offline
+    // by EquityCalibrationTest (2026-06-23, 400 ADVANCED/FULL games; 6915 decisive rows, realized
+    // gammon rate 0.190). wPip > 0: a further-behind loser is more likely gammoned.
+    internal val GAMMON_COEFFS = doubleArrayOf(-2.2821797555444863, -2.7527809877061107, 3.215603025289811, 0.9395204497565748)
+    internal val BG_COEFFS = doubleArrayOf(-3.915480448580417, -0.8965014282277425, -0.4140400108034241, 0.2304070516235051)
 
     /** Features normalized to ~[0,1] with fixed divisors. Shared by the runtime model and the
      *  calibration harness so they can never drift. */
