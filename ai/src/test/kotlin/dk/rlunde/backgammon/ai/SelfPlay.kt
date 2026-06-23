@@ -42,6 +42,7 @@ internal data class CalibrationSample(
     val phase: GamePhase,
     val winnerFeatures: GammonFeatures, // opponent-as-loser features (if mover wins)
     val loserFeatures: GammonFeatures,  // mover-as-loser features (if mover loses)
+    val decisive: Boolean,              // position is in the gammon-decidable window
 )
 
 internal data class CalibrationGame(val samples: List<CalibrationSample>, val result: GameResult)
@@ -68,6 +69,8 @@ internal fun selfPlayTrajectory(
                 phase = GamePhases.of(state),
                 winnerFeatures = gammonFeaturesOf(state, loser = mover.opponent),
                 loserFeatures = gammonFeaturesOf(state, loser = mover),
+                decisive = Features.noContact(state) ||
+                    state.offCount(Player.WHITE) > 0 || state.offCount(Player.BLACK) > 0,
             )
         )
         turns++
