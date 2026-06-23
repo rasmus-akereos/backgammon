@@ -209,7 +209,7 @@ private fun AnalysisSheet(analysis: MoveAnalysis, onDismiss: () -> Unit) {
                 if (winProbDrop != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "* win% self-play-calibrated; gammon rates are model estimates (no rollouts)",
+                        text = "* win% and gammon rates are self-play-calibrated (no rollouts)",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

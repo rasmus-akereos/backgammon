@@ -71,3 +71,12 @@ No logic change — the detail sheet reads `EquityModel.positionEquity`, so reca
 ## 10. Out of scope (→ 6c-2)
 
 Cubeful equity, recube vig, accurate take point, "too good to double". `CubePolicy` keeps the gammonless single-win thresholds (`0.70`/`0.21`) until 6c-2 consumes this trustworthy distribution. No win-prob `K` change; no `EquityModel` assembly change; no rollouts; no checker-move-selection change.
+
+## 11. Calibration results (2026-06-23)
+
+400 ADVANCED/FULL self-play games; **6915 decisive-window gammon rows**; realized gammon rate **0.190**. Fitted (scaled-feature) coefficients, committed to `GammonModel`:
+- `GAMMON_COEFFS = [-2.2821797555444863, -2.7527809877061107, 3.215603025289811, 0.9395204497565748]` — `{intercept, wBorneOff, wPip, wBackContact}`. `wPip > 0`: a further-behind loser is more likely gammoned; `wBackContact > 0`: trapped checkers raise gammon risk. Non-degenerate (gammon rate ranges ≈0.25–0.65 across positions vs ≈0 in 6a).
+- `BG_COEFFS = [-3.915480448580417, -0.8965014282277425, -0.4140400108034241, 0.2304070516235051]`.
+- Win-prob `K` unchanged from 6a (`CONTACT 0.0378`, `RACE 0.0555`).
+
+The three `GammonModelTest` invariants (borne-off gate, `bg ≤ gammon`, more-back-contact→more-bg) all hold under these coefficients, so no directional-test change was needed. Guard tolerance (§7): the mean-predicted ≈ realized by the logistic MLE, so `GammonCalibrationGuardTest` uses a `0.15` band.

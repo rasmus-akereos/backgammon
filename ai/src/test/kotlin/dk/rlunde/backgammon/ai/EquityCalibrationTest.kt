@@ -33,14 +33,14 @@ class EquityCalibrationTest {
             val value = cg.result.value // 1/2/3
             for (s in cg.samples) {
                 val moverWon = s.mover == winner
-                winByPhase.getValue(s.phase).add(s.eval to moverWon)
-                fun row(f: GammonFeatures) = doubleArrayOf(f.borneOff.toDouble(), f.pip.toDouble(), f.backContact.toDouble())
+                winByPhase.getValue(s.phase).add(s.eval to moverWon)   // win-prob: ALL plies
+                if (!s.decisive) continue                               // gammon rows: decisive window only
                 if (moverWon) {            // opponent is the loser -> winnerFeatures describe the loser
-                    winGam.add(row(s.winnerFeatures) to (value >= 2))
-                    winBg.add(row(s.winnerFeatures) to (value == 3))
+                    winGam.add(GammonModel.scaledRow(s.winnerFeatures) to (value >= 2))
+                    winBg.add(GammonModel.scaledRow(s.winnerFeatures) to (value == 3))
                 } else {                   // mover is the loser
-                    loseGam.add(row(s.loserFeatures) to (value >= 2))
-                    loseBg.add(row(s.loserFeatures) to (value == 3))
+                    loseGam.add(GammonModel.scaledRow(s.loserFeatures) to (value >= 2))
+                    loseBg.add(GammonModel.scaledRow(s.loserFeatures) to (value == 3))
                 }
             }
         }
@@ -58,5 +58,8 @@ class EquityCalibrationTest {
         }
         println("GAMMON_COEFFS = doubleArrayOf(${gam.joinToString()})")
         println("BG_COEFFS = doubleArrayOf(${bg.joinToString()})")
+        val gammonRows = winGam + loseGam
+        val realized = gammonRows.count { it.second }.toDouble() / gammonRows.size
+        println("gammon rows=${gammonRows.size}  realized gammon rate=$realized")
     }
 }
