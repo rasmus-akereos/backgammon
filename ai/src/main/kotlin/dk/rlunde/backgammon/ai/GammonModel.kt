@@ -21,12 +21,20 @@ internal data class GammonRates(val gammon: Double, val backgammon: Double)
  * IS self-play-calibrated (see WinProbability.K).
  */
 internal object GammonModel {
-    // {intercept, wBorneOff, wPip, wBackContact}.
-    internal val GAMMON_COEFFS = doubleArrayOf(-2.0, -3.0, 0.02, 0.1)
-    internal val BG_COEFFS = doubleArrayOf(-5.0, -3.0, 0.01, 0.6)
+    // {intercept, wBorneOff, wPip, wBackContact} on SCALED features (see scaledRow). PROVISIONAL —
+    // replaced by the offline fit in a later 6c-1 task.
+    internal var GAMMON_COEFFS = doubleArrayOf(-1.5, 0.0, 1.2, 0.6)
+    internal var BG_COEFFS = doubleArrayOf(-3.0, 0.0, 1.0, 1.5)
 
-    private fun logistic(c: DoubleArray, f: GammonFeatures): Double =
-        1.0 / (1.0 + exp(-(c[0] + c[1] * f.borneOff + c[2] * f.pip + c[3] * f.backContact)))
+    /** Features normalized to ~[0,1] with fixed divisors. Shared by the runtime model and the
+     *  calibration harness so they can never drift. */
+    internal fun scaledRow(f: GammonFeatures): DoubleArray =
+        doubleArrayOf(f.borneOff / 15.0, f.pip / 167.0, f.backContact / 15.0)
+
+    private fun logistic(c: DoubleArray, f: GammonFeatures): Double {
+        val s = scaledRow(f)
+        return 1.0 / (1.0 + exp(-(c[0] + c[1] * s[0] + c[2] * s[1] + c[3] * s[2])))
+    }
 
     fun loseRates(f: GammonFeatures): GammonRates {
         if (f.borneOff > 0) return GammonRates(0.0, 0.0) // gammon impossible once a checker is off
