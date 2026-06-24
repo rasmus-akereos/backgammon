@@ -100,6 +100,6 @@ class AiTurnDriverTest {
         driver.maybeRunTurn(c, onThinking = {}, publish = {})
         testScheduler.advanceUntilIdle()
         assertTrue(c.uiState.phase != Phase.CUBE_OFFERED, "must not offer when too good")
-        assertTrue(ai.calls >= 1 || c.uiState.toMove == Player.BLACK, "must roll and play, not stall")
+        assertEquals(Player.BLACK, c.uiState.toMove, "must complete the turn, not stall")
     }
 }
