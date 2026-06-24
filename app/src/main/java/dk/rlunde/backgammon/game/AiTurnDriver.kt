@@ -2,7 +2,7 @@ package dk.rlunde.backgammon.game
 
 import dk.rlunde.backgammon.ai.AiPlayer
 import dk.rlunde.backgammon.ai.CubeAdvisor
-import dk.rlunde.backgammon.ai.CubePolicy
+import dk.rlunde.backgammon.ai.OfferVerdict
 import dk.rlunde.backgammon.core.MoveGenerator
 import dk.rlunde.backgammon.core.Player
 import kotlinx.coroutines.CoroutineDispatcher
@@ -35,11 +35,13 @@ class AiTurnDriver(
         if (controller.uiState.phase == Phase.GAME_OVER) return
         if (controller.uiState.phase == Phase.CUBE_OFFERED) return  // a double is pending — not our action
 
-        // Pre-roll: offer a double when clearly ahead and the cube is available.
-        // Eval runs off-thread on [dispatcher], consistent with the move-choice path below.
+        // Pre-roll: offer a double when the cubeful model says so (NO_DOUBLE/TOO_GOOD fall through to play).
         if (controller.uiState.cube.mayDouble(aiSide)) {
-            val winProb = withContext(dispatcher) { CubeAdvisor.winProb(controller.uiState.board, aiSide) }
-            if (CubePolicy.shouldDouble(winProb)) {
+            val owner = ownerFor(controller.uiState.cube, aiSide)  // ME or CENTERED (mayDouble gated)
+            val verdict = withContext(dispatcher) {
+                CubeAdvisor.offerVerdict(controller.uiState.board, aiSide, owner)
+            }
+            if (verdict == OfferVerdict.DOUBLE) {
                 controller.offerDouble(); publish()
                 return
             }

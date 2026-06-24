@@ -70,4 +70,36 @@ class AiTurnDriverTest {
         assertEquals(true, states.first())
         assertEquals(false, states.last())
     }
+
+    @Test fun `AI offers the cube from a strong centred-cube position`() = runTest {
+        // WHITE far ahead in a race: win prob inside the double window (verdict == DOUBLE).
+        // WHITE: p[1]=2, p[2]=2, off=11 → total 15. BLACK: p[22]=-2, p[23]=-2, p[24]=-2, off=9 → total 15.
+        val p = IntArray(26); p[1] = 2; p[2] = 2; p[22] = -2; p[23] = -2; p[24] = -2
+        val c = GameController(
+            initial = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+                mapOf(Player.WHITE to 11, Player.BLACK to 9), Player.WHITE),
+            roller = SeededDiceRoller(1), aiSide = Player.WHITE)
+        val driver = AiTurnDriver(Player.WHITE, FakeAi(), StandardTestDispatcher(testScheduler), 0, 0)
+        driver.maybeRunTurn(c, onThinking = {}, publish = {})
+        testScheduler.advanceUntilIdle()
+        assertEquals(Phase.CUBE_OFFERED, c.uiState.phase)
+    }
+
+    @Test fun `a too-good position does not double but still rolls and plays`() = runTest {
+        // WHITE almost certain to win with gammon mass (cubeless equity > 1) → verdict TOO_GOOD.
+        // WHITE: p[1]=1, p[2]=1, off=13 → total 15. BLACK: p[20..24]=-3 each, off=0 → total 15.
+        val p = IntArray(26)
+        p[1] = 1; p[2] = 1
+        p[20] = -3; p[21] = -3; p[22] = -3; p[23] = -3; p[24] = -3
+        val c = GameController(
+            initial = BoardState(p, mapOf(Player.WHITE to 0, Player.BLACK to 0),
+                mapOf(Player.WHITE to 13, Player.BLACK to 0), Player.WHITE),
+            roller = SeededDiceRoller(1), aiSide = Player.WHITE)
+        val ai = FakeAi()
+        val driver = AiTurnDriver(Player.WHITE, ai, StandardTestDispatcher(testScheduler), 0, 0)
+        driver.maybeRunTurn(c, onThinking = {}, publish = {})
+        testScheduler.advanceUntilIdle()
+        assertTrue(c.uiState.phase != Phase.CUBE_OFFERED, "must not offer when too good")
+        assertTrue(ai.calls >= 1 || c.uiState.toMove == Player.BLACK, "must roll and play, not stall")
+    }
 }
