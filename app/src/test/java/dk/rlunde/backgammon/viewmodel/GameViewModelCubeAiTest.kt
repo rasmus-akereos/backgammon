@@ -23,11 +23,16 @@ import kotlin.test.assertTrue
 class GameViewModelCubeAiTest {
     private class FixedRoller(private val d: Dice) : DiceRoller { override fun roll() = d }
 
-    /** BLACK far ahead (13 borne off); WHITE all on the board. [toMove] decides who acts first. */
+    /**
+     * BLACK comfortably ahead in a pure no-contact race; both sides have borne off exactly 1 checker
+     * (so gammon is impossible → cubelessEquity stays below 1). BLACK (6 on pt22, 8 on pt21; pip≈50)
+     * vs WHITE (6 on pt10, 8 on pt11; pip≈148). Satisfies: offerVerdict(BLACK,CENTERED)==DOUBLE and
+     * responseVerdict(WHITE-on-roll,BLACK)==TAKE.
+     */
     private fun blackLeads(toMove: Player) = BoardState(
-        IntArray(26).also { it[24] = -2; it[6] = 8; it[8] = 7 },
+        IntArray(26).also { it[22] = -6; it[21] = -8; it[10] = 6; it[11] = 8 },
         mapOf(Player.WHITE to 0, Player.BLACK to 0),
-        mapOf(Player.WHITE to 0, Player.BLACK to 13),
+        mapOf(Player.WHITE to 1, Player.BLACK to 1),
         toMove,
     )
 
@@ -88,4 +93,5 @@ class GameViewModelCubeAiTest {
             "after taking, the AI should resume and play, handing back to the human (or end the game); was ${s.phase}/${s.toMove}",
         )
     }
+
 }
