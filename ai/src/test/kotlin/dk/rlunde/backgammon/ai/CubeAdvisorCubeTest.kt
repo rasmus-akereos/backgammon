@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class CubeAdvisorCubeTest {
-    /** WHITE far ahead in a pure race (no contact): a clear double / easy take for WHITE. */
+    /** WHITE far ahead in a pure race: a clear double for WHITE; a hopeless race (easy drop) for BLACK. */
     private fun whiteWayAhead(): BoardState {
         val pts = IntArray(26)
         pts[1] = 2; pts[2] = 2
@@ -22,7 +22,7 @@ class CubeAdvisorCubeTest {
     @Test fun `equities winProb equals the winProb facade (single source)`() {
         val s = whiteWayAhead()
         val eqP = CubeAdvisor.equities(s, Player.WHITE, CubeOwner.CENTERED).winProb
-        assertEquals(CubeAdvisor.winProb(s, Player.WHITE), eqP, 1e-12)
+        assertEquals(eqP, CubeAdvisor.winProb(s, Player.WHITE), 1e-12)
     }
 
     @Test fun `responseVerdict is invariant to whose turn it is`() {

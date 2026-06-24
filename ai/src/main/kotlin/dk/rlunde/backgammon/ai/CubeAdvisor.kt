@@ -15,11 +15,12 @@ object CubeAdvisor {
 
     /** Cube-offer verdict for the on-roll [perspective] given who owns the cube. */
     fun offerVerdict(state: BoardState, perspective: Player, owner: CubeOwner): OfferVerdict =
-        CubeDecision.offer(CubeEquity.of(dist(state, perspective), GamePhases.of(state), owner), owner)
+        CubeDecision.offer(equities(state, perspective, owner), owner)
 
-    /** Take/drop verdict for the [receiver] of a double (distribution built from the receiver's side). */
+    /** Take/drop verdict for the [receiver] of a double (built from the receiver's side; owner
+     *  is irrelevant to a take decision, so any value works). */
     fun responseVerdict(state: BoardState, receiver: Player): ResponseVerdict =
-        CubeDecision.response(CubeEquity.of(dist(state, receiver), GamePhases.of(state), CubeOwner.ME))
+        CubeDecision.response(equities(state, receiver, CubeOwner.ME))
 
     /** Full equities for the trainer hint. */
     fun equities(state: BoardState, perspective: Player, owner: CubeOwner): CubeEquities =
