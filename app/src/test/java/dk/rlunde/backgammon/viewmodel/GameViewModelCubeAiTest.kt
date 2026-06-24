@@ -93,5 +93,4 @@ class GameViewModelCubeAiTest {
             "after taking, the AI should resume and play, handing back to the human (or end the game); was ${s.phase}/${s.toMove}",
         )
     }
-
 }
