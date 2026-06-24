@@ -1,7 +1,7 @@
 package dk.rlunde.backgammon.ai
 
-import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -27,7 +27,7 @@ class CubeEquityTest {
     @Test fun `all three cubeful equities reduce to cubeless at x=0`() {
         val d = gammonless(0.65)
         val cubeless = d.cubelessEquity  // = 2*0.65 - 1 = 0.30
-        for (owner in CubeOwner.values()) {
+        for (owner in CubeOwner.entries) {
             val eq = CubeEquity.ofX(d, x = 0.0, owner = owner)
             assertEquals(cubeless, eq.holdEquity, 1e-9, "holdEquity for $owner")
         }
@@ -72,9 +72,14 @@ class CubeEquityTest {
     }
 
     @Test fun `out-of-range cube efficiency is rejected`() {
-        try {
+        assertFailsWith<IllegalArgumentException> {
             CubeEquity.ofX(gammonless(0.5), x = 4.0, owner = CubeOwner.CENTERED)
-            assertTrue(false, "expected require() to reject x=4.0")
-        } catch (e: IllegalArgumentException) { /* expected */ }
+        }
+    }
+
+    @Test fun `owning the cube beats centered beats opponent at x=065`() {
+        val hold = { owner: CubeOwner -> CubeEquity.ofX(gammonless(0.6), 0.65, owner).holdEquity }
+        assertTrue(hold(CubeOwner.ME) > hold(CubeOwner.CENTERED))
+        assertTrue(hold(CubeOwner.CENTERED) > hold(CubeOwner.OPPONENT))
     }
 }
