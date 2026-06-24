@@ -2,9 +2,14 @@ package dk.rlunde.backgammon.ai
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class CubeDecisionTest {
-    private fun gammonless(p: Double) = OutcomeDistribution(p, 0.0, 0.0, 1.0 - p, 0.0, 0.0)
+    private fun gammonless(p: Double) = OutcomeDistribution(
+        winSingle = p, winGammon = 0.0, winBackgammon = 0.0,
+        loseSingle = 1.0 - p, loseGammon = 0.0, loseBackgammon = 0.0,
+    )
     private fun offer(d: OutcomeDistribution, x: Double, owner: CubeOwner) =
         CubeDecision.offer(CubeEquity.ofX(d, x, owner), owner)
     private fun response(d: OutcomeDistribution, x: Double) =
@@ -36,23 +41,23 @@ class CubeDecisionTest {
     @Test fun `too good fires only when cubeless equity exceeds one (pinned cause)`() {
         val tooGood = OutcomeDistribution(0.20, 0.62, 0.03, 0.13, 0.02, 0.0)
         val eq = CubeEquity.ofX(tooGood, 0.65, CubeOwner.CENTERED)
-        assertEquals(true, eq.winProb > eq.cashPoint)
-        assertEquals(true, eq.cubelessEquity > 1.0)
+        assertTrue(eq.winProb > eq.cashPoint, "precondition: past cash point")
+        assertTrue(eq.cubelessEquity > 1.0, "precondition: cubeless > 1")
         assertEquals(OfferVerdict.TOO_GOOD, CubeDecision.offer(eq, CubeOwner.CENTERED))
     }
 
     @Test fun `past the cash point but not too good is a normal cash`() {
         val cash = OutcomeDistribution(0.78, 0.04, 0.0, 0.18, 0.0, 0.0)
         val eq = CubeEquity.ofX(cash, 0.65, CubeOwner.CENTERED)
-        assertEquals(true, eq.winProb > eq.cashPoint)
+        assertTrue(eq.winProb > eq.cashPoint, "precondition: past cash point")
         assertEquals(OfferVerdict.DOUBLE, CubeDecision.offer(eq, CubeOwner.CENTERED))
     }
 
     @Test fun `centred cube-access inflation does not spuriously trigger too good`() {
         val moderate = OutcomeDistribution(0.55, 0.25, 0.0, 0.20, 0.0, 0.0)
         val eq = CubeEquity.ofX(moderate, 0.65, CubeOwner.CENTERED)
-        assertEquals(true, eq.holdEquity > 1.0)
-        assertEquals(true, eq.cubelessEquity < 1.0)
+        assertTrue(eq.holdEquity > 1.0, "precondition: centred equity inflated")
+        assertTrue(eq.cubelessEquity < 1.0, "precondition: cubeless < 1")
         assertEquals(OfferVerdict.DOUBLE, CubeDecision.offer(eq, CubeOwner.CENTERED))
     }
 

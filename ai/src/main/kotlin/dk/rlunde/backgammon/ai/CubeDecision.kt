@@ -12,15 +12,14 @@ internal object CubeDecision {
      * Offer decision for the player on roll. [owner] must reflect [eq] (it packs holdEquity);
      * an OPPONENT-owned cube cannot be doubled, so it returns NO_DOUBLE.
      */
-    fun offer(eq: CubeEquities, owner: CubeOwner): OfferVerdict {
-        if (owner == CubeOwner.OPPONENT) return OfferVerdict.NO_DOUBLE
-        return if (eq.winProb > eq.cashPoint) {
-            // Opponent would pass: cash for +1, unless playing the gammon out is worth more.
+    fun offer(eq: CubeEquities, owner: CubeOwner): OfferVerdict = when {
+        owner == CubeOwner.OPPONENT -> OfferVerdict.NO_DOUBLE
+        // Opponent would pass: cash for +1, unless playing the gammon out is worth more.
+        eq.winProb > eq.cashPoint ->
             if (eq.cubelessEquity > 1.0) OfferVerdict.TOO_GOOD else OfferVerdict.DOUBLE
-        } else {
-            // Opponent would take: double iff being-taken beats holding the cube.
+        // Opponent would take: double iff being-taken beats holding the cube.
+        else ->
             if (eq.doubleTake > eq.holdEquity) OfferVerdict.DOUBLE else OfferVerdict.NO_DOUBLE
-        }
     }
 
     /** Take iff the receiver's win prob clears their take point (owner-independent — see spec §4.1). */
