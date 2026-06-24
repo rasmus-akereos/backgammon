@@ -3,7 +3,7 @@ package dk.rlunde.backgammon.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dk.rlunde.backgammon.ai.CubeAdvisor
-import dk.rlunde.backgammon.ai.CubePolicy
+import dk.rlunde.backgammon.ai.ResponseVerdict
 import dk.rlunde.backgammon.ai.HeuristicAiPlayer
 import dk.rlunde.backgammon.ai.MoveAnalysis
 import dk.rlunde.backgammon.ai.MoveAnalyzer
@@ -109,8 +109,10 @@ class GameViewModel internal constructor(
         if (controller.uiState.phase != Phase.CUBE_OFFERED) return
         if (controller.uiState.toMove.opponent != ai) return  // responder isn't the AI (e.g. hot-seat)
         aiJob = scope.launch {
-            val winProb = withContext(analysisDispatcher) { CubeAdvisor.winProb(controller.uiState.board, ai) }
-            controller.respondDouble(if (CubePolicy.shouldTake(winProb)) CubeResponse.TAKE else CubeResponse.DROP)
+            val verdict = withContext(analysisDispatcher) {
+                CubeAdvisor.responseVerdict(controller.uiState.board, ai)
+            }
+            controller.respondDouble(if (verdict == ResponseVerdict.TAKE) CubeResponse.TAKE else CubeResponse.DROP)
             publish()
         }
     }
