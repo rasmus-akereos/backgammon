@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dk.rlunde.backgammon.ai.Band
+import dk.rlunde.backgammon.ai.CubeAdvisor
+import dk.rlunde.backgammon.ai.CubeOwner
 import dk.rlunde.backgammon.ai.Feature
 import dk.rlunde.backgammon.ai.MoveAnalysis
 import dk.rlunde.backgammon.core.BoardState
@@ -20,6 +22,7 @@ import dk.rlunde.backgammon.game.EndReason
 import dk.rlunde.backgammon.game.GameUiState
 import dk.rlunde.backgammon.game.Phase
 import dk.rlunde.backgammon.game.UiEvent
+import dk.rlunde.backgammon.game.ownerFor
 import dk.rlunde.backgammon.ui.board.BoardCanvas
 import dk.rlunde.backgammon.ui.board.DiceRow
 import dk.rlunde.backgammon.ui.theme.AppColors
@@ -305,6 +308,16 @@ private fun TrackingPanel(
         // Push the dice + controls to the bottom of the panel.
         Spacer(Modifier.weight(1f))
 
+        // Cube hint: training on, pre-roll, and the on-roll side may actually double.
+        if (state.training && state.phase == Phase.NEED_ROLL && state.cube.mayDouble(state.toMove)) {
+            CubeHintLine(
+                board = state.board,
+                onRoll = state.toMove,
+                owner = ownerFor(state.cube, state.toMove),
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
         // Band marker chip — shown when training is on and analysis is available
         if (state.training && state.analysis != null) {
             val (bandLabel, bandColor) = bandDisplay(state.analysis)
@@ -359,6 +372,23 @@ private fun TrackingPanel(
         if (!isAiTurn && (state.phase == Phase.NEED_ROLL || state.phase == Phase.MOVING || state.phase == Phase.COMMITTABLE)) {
             TextButton(onClick = onResign) { Text("Resign", style = MaterialTheme.typography.labelMedium) }
         }
+    }
+}
+
+@Composable
+private fun CubeHintLine(board: BoardState, onRoll: Player, owner: CubeOwner, modifier: Modifier = Modifier) {
+    val eq = CubeAdvisor.equities(board, onRoll, owner)
+    val verdict = CubeAdvisor.offerVerdict(eq, owner)
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = cubeHintLine(verdict, eq),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
     }
 }
 
