@@ -378,7 +378,7 @@ private fun TrackingPanel(
 @Composable
 private fun CubeHintLine(board: BoardState, onRoll: Player, owner: CubeOwner, modifier: Modifier = Modifier) {
     val eq = CubeAdvisor.equities(board, onRoll, owner)
-    val verdict = CubeAdvisor.offerVerdict(board, onRoll, owner)
+    val verdict = CubeAdvisor.offerVerdict(eq, owner)
     Surface(
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainer,

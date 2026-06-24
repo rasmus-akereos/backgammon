@@ -17,6 +17,10 @@ object CubeAdvisor {
     fun offerVerdict(state: BoardState, perspective: Player, owner: CubeOwner): OfferVerdict =
         CubeDecision.offer(equities(state, perspective, owner), owner)
 
+    /** Offer verdict from already-computed [eq] (avoids a second distribution build). */
+    fun offerVerdict(eq: CubeEquities, owner: CubeOwner): OfferVerdict =
+        CubeDecision.offer(eq, owner)
+
     /** Take/drop verdict for the [receiver] of a double (built from the receiver's side; owner
      *  is irrelevant to a take decision, so any value works). */
     fun responseVerdict(state: BoardState, receiver: Player): ResponseVerdict =
